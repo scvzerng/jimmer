@@ -3,6 +3,7 @@ package org.babyfish.jimmer.meta;
 import org.babyfish.jimmer.impl.util.Classes;
 import org.babyfish.jimmer.impl.util.GenericValidator;
 import org.babyfish.jimmer.lang.Ref;
+import org.babyfish.jimmer.sql.AuditField;
 import org.babyfish.jimmer.sql.Default;
 import org.babyfish.jimmer.sql.JoinTable;
 import org.babyfish.jimmer.sql.LogicalDeleted;
@@ -37,6 +38,8 @@ public final class LogicalDeletedInfo {
 
     private final Ref<Object> initializedValueRef;
 
+    private final List<ImmutableProp> auditProps;
+
     private LogicalDeletedInfo(
             ImmutableProp prop,
             String columnName,
@@ -45,7 +48,9 @@ public final class LogicalDeletedInfo {
             Object value,
             Class<? extends LogicalDeletedValueGenerator<?>> generatorType,
             String generatorRef,
-            Ref<Object> initializedValueRef
+            Ref<Object> initializedValueRef,
+            List<ImmutableProp> auditProps
+
     ) {
         this.prop = prop;
         this.columnName = columnName;
@@ -55,6 +60,7 @@ public final class LogicalDeletedInfo {
         this.generatorType = generatorType;
         this.generatorRef = generatorRef;
         this.initializedValueRef = initializedValueRef;
+        this.auditProps = auditProps;
     }
 
     public LogicalDeletedInfo to(ImmutableProp prop) {
@@ -62,6 +68,10 @@ public final class LogicalDeletedInfo {
             return this;
         }
         return new LogicalDeletedInfo(this, prop);
+    }
+
+    public List<ImmutableProp> getAuditProps() {
+        return auditProps;
     }
 
     private LogicalDeletedInfo(LogicalDeletedInfo base, ImmutableProp prop) {
@@ -83,6 +93,7 @@ public final class LogicalDeletedInfo {
         this.generatorType = base.generatorType;
         this.generatorRef = base.generatorRef;
         this.initializedValueRef = base.initializedValueRef;
+        this.auditProps = base.auditProps;
     }
 
     public ImmutableProp getProp() {
@@ -195,6 +206,10 @@ public final class LogicalDeletedInfo {
                 '}';
     }
 
+    private static List<ImmutableProp> getAuditProps(ImmutableType type) {
+        return type.getDeclaredProps().values().stream().filter(p -> p.getAnnotation(AuditField.class) != null).collect(Collectors.toList());
+    }
+
     public static LogicalDeletedInfo of(ImmutableProp prop) {
         LogicalDeleted deleted = prop.getAnnotation(LogicalDeleted.class);
         JoinTable.LogicalDeletedFilter deletedFilter = null;
@@ -215,6 +230,7 @@ public final class LogicalDeletedInfo {
                 );
             }
         }
+
         if (deleted == null && deletedFilter == null) {
             return null;
         }
@@ -426,7 +442,8 @@ public final class LogicalDeletedInfo {
                         null,
                         generatorType,
                         generatorRef,
-                        initializeValueRef
+                        initializeValueRef,
+                        getAuditProps(prop.getDeclaringType())
                 );
             }
             return new LogicalDeletedInfo(
@@ -437,7 +454,8 @@ public final class LogicalDeletedInfo {
                     null,
                     generatorType,
                     generatorRef,
-                    initializeValueRef
+                    initializeValueRef,
+                    getAuditProps(prop.getDeclaringType())
             );
         }
 
@@ -467,7 +485,8 @@ public final class LogicalDeletedInfo {
                 value,
                 null,
                 null,
-                initializeValueRef
+                initializeValueRef,
+                getAuditProps(prop.getDeclaringType())
         );
     }
 

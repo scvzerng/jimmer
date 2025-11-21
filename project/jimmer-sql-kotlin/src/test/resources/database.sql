@@ -10,6 +10,7 @@ drop table machine if exists;
 drop table file_user_mapping if exists;
 drop table file_user if exists;
 drop table file if exists;
+drop table audit_file if exists;
 drop table learning_link if exists;
 drop table course if exists;
 drop table student if exists;
@@ -564,6 +565,28 @@ create table file(
     name varchar(20) not null,
     parent_id bigint
 );
+
+create table audit_file(
+    id bigint not null ,
+    name varchar(20) not null,
+    parent_id bigint,
+    delete_by_id bigint,
+    delete_time  bigint,
+    audit1 bigint
+);
+
+insert into audit_file(id, name, parent_id) values
+   (1, 'dir1', null),
+     (2, 'file2', 1),
+       (21, 'file21', 2),
+         (211, 'file211', 21),
+     (3, 'file3', 1),
+       (31, 'file31', 1),
+     (4, 'file4', 1),
+   (5, 'dir2', null),
+     (6, 'file6', 1),
+     (7, 'file7', 1),
+     (8, 'file8', 1);
 
 alter table file
     add constraint pk_file
