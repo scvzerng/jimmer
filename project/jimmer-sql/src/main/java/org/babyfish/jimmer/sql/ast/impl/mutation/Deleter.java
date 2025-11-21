@@ -5,6 +5,7 @@ import org.babyfish.jimmer.meta.*;
 import org.babyfish.jimmer.runtime.DraftSpi;
 import org.babyfish.jimmer.runtime.ImmutableSpi;
 import org.babyfish.jimmer.runtime.Internal;
+import org.babyfish.jimmer.sql.AuditField;
 import org.babyfish.jimmer.sql.DissociateAction;
 import org.babyfish.jimmer.sql.ast.impl.AstContext;
 import org.babyfish.jimmer.sql.ast.impl.Variables;
@@ -274,6 +275,31 @@ public class Deleter {
                 builder.rawVariable(Variables.process(generatedDeletedValue, info.getProp(), sqlClient));
             } else {
                 builder.sql("null");
+            }
+            if (!info.getAuditProps().isEmpty()) {
+                builder.sql(",");
+                try {
+                    for (int index = 0, length = info.getAuditProps().size(); index < length; index++) {
+                        ImmutableProp prop = info.getAuditProps().get(index);
+                        String propAssignedName = prop.<SingleColumn>getStorage(sqlClient.getMetadataStrategy()).getName();
+                        builder.sql(propAssignedName).sql(" = ");
+                        LogicalDeletedValueGenerator<?> generator = sqlClient.getLogicalDeletedValueGenerator(prop.getAnnotation(AuditField.class).generatorType());
+                        Object value = generator.generate();
+                        if (value == null) {
+                            builder.sql("null");
+                        }else {
+                            value = Variables.process(value, value.getClass(), sqlClient);
+                            builder.rawVariable(value);
+                        }
+
+                        if(index < length - 1) {
+                            builder.sql(",");
+                        }
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+
             }
         } else {
             builder.sql("delete from ")
