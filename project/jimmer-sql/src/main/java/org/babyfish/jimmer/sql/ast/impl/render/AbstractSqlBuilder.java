@@ -1,7 +1,9 @@
 package org.babyfish.jimmer.sql.ast.impl.render;
 
 import org.babyfish.jimmer.lang.Ref;
+import org.babyfish.jimmer.meta.ImmutableProp;
 import org.babyfish.jimmer.meta.LogicalDeletedInfo;
+import org.babyfish.jimmer.sql.AuditField;
 import org.babyfish.jimmer.sql.ast.impl.Ast;
 import org.babyfish.jimmer.sql.ast.impl.ExpressionImplementor;
 import org.babyfish.jimmer.sql.ast.impl.Variables;
@@ -92,7 +94,36 @@ public abstract class AbstractSqlBuilder<T extends AbstractSqlBuilder<T>> {
             generatedValue = Variables.process(generatedValue, logicalDeletedInfo.getType(), sqlClient());
             rawVariable(generatedValue);
         }
-        return (T)this;
+
+        if (!logicalDeletedInfo.getAuditProps().isEmpty()) {
+            sql(",");
+            try {
+                for (int index = 0, length = logicalDeletedInfo.getAuditProps().size(); index < length; index++) {
+                    ImmutableProp prop = logicalDeletedInfo.getAuditProps().get(index);
+                    String propAssignedName = prop.<SingleColumn>getStorage(sqlClient().getMetadataStrategy()).getName();
+                    if (alias != null) {
+                        propAssignedName = alias + '.' + propAssignedName;
+                    }
+                    sql(propAssignedName).sql(" = ");
+                    LogicalDeletedValueGenerator<?> generator = sqlClient().getLogicalDeletedValueGenerator(prop.getAnnotation(AuditField.class).generatorType());
+                    Object value = generator.generate();
+                    if (value == null) {
+                        sql("null");
+                    }else {
+                        value = Variables.process(value, value.getClass(), sqlClient());
+                        rawVariable(value);
+                    }
+
+                    if(index < length - 1) {
+                        sql(",");
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+        }
+        return (T) this;
     }
 
     @SuppressWarnings("unchecked")
