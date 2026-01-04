@@ -266,7 +266,7 @@ public class ImmutableObjects {
                 }
             }
         }
-        throw new IllegalArgumentException("The first argument is immutable object created by jimmer");
+        throw new IllegalArgumentException("The first argument is not immutable object created by jimmer");
     }
 
     @SuppressWarnings("unchecked")
