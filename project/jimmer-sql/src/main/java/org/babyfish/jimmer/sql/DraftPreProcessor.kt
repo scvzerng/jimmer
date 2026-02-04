@@ -78,4 +78,9 @@ interface DraftPreProcessor<D: Draft> {
      * and different calls must return the same return value.
      */
     fun ignoreKeyOnly(group: KeyMatcher.Group) = false
+
+    /**
+     * key match 之前对key进行修改以满足租户之类的延迟key设置需求
+     */
+    fun beforeKeyMatcher(draft: D, group: KeyMatcher.Group?){}
 }
