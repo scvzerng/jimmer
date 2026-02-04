@@ -217,4 +217,7 @@ public interface AbstractEntitySaveCommand {
 
     @NewChain
     AbstractEntitySaveCommand setDissociationLogicalDeleteEnabled(boolean enabled);
+
+    @NewChain
+    AbstractEntitySaveCommand setDisableCircularDeleteDetection(boolean disable);
 }

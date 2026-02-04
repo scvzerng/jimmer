@@ -126,12 +126,15 @@ public class DeleteCommandImpl extends AbstractCommandImpl implements DeleteComm
 
         private final boolean transactionRequired;
 
+        private final boolean disableCircularDeleteDetection;
+
         private Argument argument;
 
         OptionsImpl(Cfg cfg) {
             RootCfg rootCfg = cfg.as(RootCfg.class);
             ConnectionCfg connectionCfg = cfg.as(ConnectionCfg.class);
             DeleteModeCfg deleteModeCfg = cfg.as(DeleteModeCfg.class);
+            DisableCircularDeleteDetectionCfg disableCircularDeleteDetectionCfg = cfg.as(DisableCircularDeleteDetectionCfg.class);
             MaxCommandJoinCountCfg maxCommandJoinCountCfg = cfg.as(MaxCommandJoinCountCfg.class);
             AbstractEntitySaveCommandImpl.ExceptionTranslatorCfg exceptionTranslatorCfg =
                     cfg.as(AbstractEntitySaveCommandImpl.ExceptionTranslatorCfg.class);
@@ -156,6 +159,11 @@ public class DeleteCommandImpl extends AbstractCommandImpl implements DeleteComm
                     sqlClient.isMutationTransactionRequired();
             this.dissociateActionMap = MapNode.toMap(dissociationActionCfg, it -> it.mapNode);
             this.dumbBatchAcceptable = dumbBatchAcceptableCfg != null && dumbBatchAcceptableCfg.acceptable;
+            if(disableCircularDeleteDetectionCfg != null) {
+                this.disableCircularDeleteDetection = disableCircularDeleteDetectionCfg.disableCircularDeleteDetection;
+            } else {
+                this.disableCircularDeleteDetection = sqlClient.isCircularDeleteDetectionDisabled();
+            }
             this.argument = (Argument) rootCfg.argument;
         }
 
@@ -180,6 +188,7 @@ public class DeleteCommandImpl extends AbstractCommandImpl implements DeleteComm
             this.dumbBatchAcceptable = sqlClient.getDialect().isBatchDumb();
             this.transactionRequired = sqlClient.isMutationTransactionRequired();
             this.argument = null;
+            this.disableCircularDeleteDetection = sqlClient.isCircularDeleteDetectionDisabled();
         }
 
         @Override
@@ -235,6 +244,11 @@ public class DeleteCommandImpl extends AbstractCommandImpl implements DeleteComm
         }
 
         @Override
+        public boolean disableCircularDeleteDetection() {
+            return disableCircularDeleteDetection;
+        }
+
+        @Override
         public Triggers getTriggers() {
             return sqlClient.getTriggerType() == TriggerType.BINLOG_ONLY ?
                     null :
@@ -279,5 +293,10 @@ public class DeleteCommandImpl extends AbstractCommandImpl implements DeleteComm
     @Override
     public DeleteCommand setTransactionRequired(boolean required) {
         return new DeleteCommandImpl(new TransactionRequiredCfg(cfg, required));
+    }
+
+    @Override
+    public DeleteCommand setDisableCircularDeleteDetection(boolean disable) {
+        return new DeleteCommandImpl(new DisableCircularDeleteDetectionCfg(cfg, disable));
     }
 }

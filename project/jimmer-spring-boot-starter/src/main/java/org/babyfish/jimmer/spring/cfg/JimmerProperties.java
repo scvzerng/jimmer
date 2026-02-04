@@ -84,6 +84,8 @@ public class JimmerProperties {
 
     private final boolean constraintViolationTranslatable;
 
+    private final boolean disableCircularDeleteDetection;
+
     private final Collection<String> executorContextPrefixes;
 
     @NotNull
@@ -125,6 +127,7 @@ public class JimmerProperties {
             boolean explicitBatchEnabled,
             boolean dumbBatchAcceptable,
             Boolean constraintViolationTranslatable, // Default value is true, so use `Boolean`
+            @Nullable Boolean disableCircularDeleteDetection, // Default value is false, so use `Boolean`
             @Nullable Collection<String> executorContextPrefixes,
             @Nullable String microServiceName,
             @Nullable ErrorTranslator errorTranslator,
@@ -257,6 +260,10 @@ public class JimmerProperties {
                 constraintViolationTranslatable != null ?
                         constraintViolationTranslatable :
                         true;
+        this.disableCircularDeleteDetection =
+                disableCircularDeleteDetection != null ?
+                        disableCircularDeleteDetection :
+                        false;
         this.executorContextPrefixes = executorContextPrefixes;
         this.microServiceName =
                 microServiceName != null ?
@@ -351,6 +358,10 @@ public class JimmerProperties {
 
     public boolean isDissociationLogicalDeleteEnabled() {
         return dissociationLogicalDeleteEnabled;
+    }
+
+    public boolean isDisableCircularDeleteDetection() {
+        return disableCircularDeleteDetection;
     }
 
     /**

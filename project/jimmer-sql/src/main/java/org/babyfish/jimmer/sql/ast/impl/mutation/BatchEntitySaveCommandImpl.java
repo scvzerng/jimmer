@@ -216,6 +216,11 @@ public class BatchEntitySaveCommandImpl<E>
         return new BatchEntitySaveCommandImpl<>(new DissociationLogicalDeleteEnabledCfg(cfg, enabled));
     }
 
+    @Override
+    public BatchEntitySaveCommand<E> setDisableCircularDeleteDetection(boolean disable) {
+        return new BatchEntitySaveCommandImpl<>(new DisableCircularDeleteDetectionCfg(cfg, disable));
+    }
+
     private static <E> Collection<E> entities(OptionsImpl options) {
         Iterable<E> iterable = options.getArument();
         if (iterable instanceof Collection<?>) {
@@ -281,4 +286,5 @@ public class BatchEntitySaveCommandImpl<E>
         );
         return saver.saveAll(entities);
     }
+
 }

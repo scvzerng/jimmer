@@ -485,6 +485,9 @@ public interface JSqlClient extends SubQueryProvider, DeprecatedMoreSaveOperatio
         Builder setDefaultDissociateActionCheckable(boolean checkable);
 
         @OldChain
+        Builder setDisableCircularDeleteDetection(boolean disable);
+
+        @OldChain
         Builder setIdOnlyTargetCheckingLevel(IdOnlyTargetCheckingLevel checkingLevel);
 
         @OldChain

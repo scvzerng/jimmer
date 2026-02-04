@@ -26,4 +26,8 @@ internal class KDeleteCommandDslImpl(
     override fun setTransactionRequired(required: Boolean) {
         javaCommand = javaCommand.setTransactionRequired(required)
     }
+
+    override fun setDisableCircularDeleteDetection(disable: Boolean) {
+        javaCommand = javaCommand.setDisableCircularDeleteDetection(disable)
+    }
 }
