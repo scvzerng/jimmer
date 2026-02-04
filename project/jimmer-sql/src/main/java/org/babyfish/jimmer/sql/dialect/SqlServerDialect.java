@@ -221,4 +221,9 @@ public class SqlServerDialect extends DefaultDialect {
             throw new IllegalArgumentException("SqlServer does not support " + wait);
         }
     }
+
+    @Override
+    public boolean isUpdateAliasSupported() {
+        return false;
+    }
 }
