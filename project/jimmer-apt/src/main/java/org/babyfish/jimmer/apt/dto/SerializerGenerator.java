@@ -1,15 +1,10 @@
 package org.babyfish.jimmer.apt.dto;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeSpec;
-import org.babyfish.jimmer.apt.immutable.generator.Constants;
 import org.babyfish.jimmer.apt.immutable.meta.ImmutableProp;
 import org.babyfish.jimmer.apt.immutable.meta.ImmutableType;
-import org.babyfish.jimmer.apt.util.ClassNames;
 import org.babyfish.jimmer.dto.compiler.DtoModifier;
 import org.babyfish.jimmer.dto.compiler.DtoProp;
 import org.babyfish.jimmer.dto.compiler.DtoType;
@@ -37,7 +32,7 @@ public class SerializerGenerator {
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .superclass(
                         ParameterizedTypeName.get(
-                                Constants.JSON_SERIALIZER_CLASS_NAME,
+                                parentGenerator.ctx.getJacksonTypes().jsonSerializer,
                                 parentGenerator.getDtoClassName(null)
                         )
                 );
@@ -55,11 +50,11 @@ public class SerializerGenerator {
                         "input"
                 )
                 .addParameter(
-                        ClassName.get(JsonGenerator.class),
+                        parentGenerator.ctx.getJacksonTypes().jsonGenerator,
                         "gen"
                 )
                 .addParameter(
-                        ClassName.get(SerializerProvider.class),
+                        parentGenerator.ctx.getJacksonTypes().serializerProvider,
                         "provider"
                 )
                 .addException(IOException.class);

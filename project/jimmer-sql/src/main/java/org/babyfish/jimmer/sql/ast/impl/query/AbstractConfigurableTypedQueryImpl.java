@@ -257,7 +257,7 @@ abstract class AbstractConfigurableTypedQueryImpl implements TypedQueryImplement
             fakeRenderExportedForeignKeys(mutableQuery.getTableLikeImplementor(),builder);
         }
         builder.leave();
-            mutableQuery.renderTo(builder, data.withoutSortingAndPaging, data.reverseSorting);
+        mutableQuery.renderTo(builder, data.withoutSortingAndPaging, data.reverseSorting);
     }
 
     private void renderSelections(SqlBuilder builder) {
@@ -337,7 +337,7 @@ abstract class AbstractConfigurableTypedQueryImpl implements TypedQueryImplement
                     int size = definition.size();
                     for (int i = 0; i < size; i++) {
                         // Fake render, only call `columnIndex`, not render it
-                        mapper.columnIndex(realTable.getAlias(), definition.name(i));
+                        mapper.columnIndex(realTable.getAlias(), definition.name(i), false);
                     }
                 }
             }

@@ -15,7 +15,7 @@ import java.util.*;
 
 public class ImmutableObjects {
 
-    private static final ObjectMapper MAPPER;
+    private static final ObjectMapper OBJECT_MAPPER;
 
     private ImmutableObjects() {}
 
@@ -250,23 +250,25 @@ public class ImmutableObjects {
     }
 
     public static boolean isLonely(Object immutable) {
-        if (immutable instanceof ImmutableSpi) {
-            ImmutableSpi spi = (ImmutableSpi) immutable;
-            ImmutableType type = spi.__type();
-            for (ImmutableProp prop : type.getProps().values()) {
-                if (prop.isAssociation(TargetLevel.ENTITY) && spi.__isLoaded(prop.getId())) {
-                    if (prop.isColumnDefinition()) {
-                        ImmutableSpi target = (ImmutableSpi) spi.__get(prop.getId());
-                        if (target != null && !isIdOnly(target)) {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                }
+        if (!(immutable instanceof ImmutableSpi)) {
+            throw new IllegalArgumentException("The first argument is not immutable object created by jimmer");
+        }
+
+        ImmutableSpi spi = (ImmutableSpi) immutable;
+        ImmutableType type = spi.__type();
+        for (ImmutableProp prop : type.getProps().values()) {
+            if (!(prop.isAssociation(TargetLevel.ENTITY) && spi.__isLoaded(prop.getId()))) {
+                continue;
+            }
+            if (!prop.isColumnDefinition()) {
+                return false;
+            }
+            ImmutableSpi target = (ImmutableSpi) spi.__get(prop.getId());
+            if (target != null && !isIdOnly(target)) {
+                return false;
             }
         }
-        throw new IllegalArgumentException("The first argument is immutable object created by jimmer");
+        return true;
     }
 
     @SuppressWarnings("unchecked")
@@ -360,7 +362,7 @@ public class ImmutableObjects {
      */
     public static String toString(Object immutable) {
         try {
-            return MAPPER.writeValueAsString(immutable);
+            return OBJECT_MAPPER.writeValueAsString(immutable);
         } catch (JsonProcessingException ex) {
             throw new RuntimeException(ex);
         }
@@ -373,11 +375,11 @@ public class ImmutableObjects {
      * @return Deserialized object
      */
     public static <I> I fromString(Class<I> type, String json) throws JsonProcessingException {
-        return MAPPER.readValue(json, type);
+        return OBJECT_MAPPER.readValue(json, type);
     }
 
     public static <I> I fromString(Class<I> type, String json, @Nullable ObjectMapper mapper) throws JsonProcessingException {
-        return (mapper != null ? mapper : MAPPER).readValue(json, type);
+        return (mapper != null ? mapper : objectMapper()).readValue(json, type);
     }
 
     @SuppressWarnings("unchecked")
@@ -542,11 +544,31 @@ public class ImmutableObjects {
         });
     }
 
+    private static ObjectMapper objectMapper() {
+        if (OBJECT_MAPPER == null) {
+            throw new IllegalStateException("Jackson2 is required");
+        }
+        return OBJECT_MAPPER;
+    }
+
+    private static boolean classExists(String className) {
+        try {
+            Class.forName(className);
+            return true;
+        } catch (ClassNotFoundException ex) {
+            return false;
+        }
+    }
+
     static {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.registerModule(new ImmutableModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        MAPPER = mapper;
+        if (classExists("com.fasterxml.jackson.databind.ObjectMapper")) {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            mapper.registerModule(new ImmutableModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            OBJECT_MAPPER = mapper;
+        } else {
+            OBJECT_MAPPER = null;
+        }
     }
 }

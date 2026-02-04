@@ -7,13 +7,17 @@ import org.babyfish.jimmer.sql.ast.impl.query.MutableRootQueryImpl
 import org.babyfish.jimmer.sql.ast.query.ConfigurableRootQuery
 import org.babyfish.jimmer.sql.ast.query.MutableRootQuery
 import org.babyfish.jimmer.sql.ast.query.PageFactory
+import org.babyfish.jimmer.sql.ast.table.BaseTable
 import org.babyfish.jimmer.sql.ast.table.Table
 import org.babyfish.jimmer.sql.ast.table.spi.TableLike
 import org.babyfish.jimmer.sql.kt.ast.query.KConfigurableRootQuery
 import org.babyfish.jimmer.sql.kt.ast.query.KMutableBaseQuery
 import org.babyfish.jimmer.sql.kt.ast.query.KMutableRootQuery
+import org.babyfish.jimmer.sql.kt.ast.table.KBaseTable
+import org.babyfish.jimmer.sql.kt.ast.table.KBaseTableSymbol
 import org.babyfish.jimmer.sql.kt.ast.table.KNonNullTable
 import org.babyfish.jimmer.sql.kt.ast.table.KPropsLike
+import org.babyfish.jimmer.sql.kt.ast.table.impl.AbstractKBaseTableImpl
 import java.sql.Connection
 import java.util.function.BiFunction
 
@@ -25,6 +29,20 @@ internal class KConfigurableRootQueryImpl<P: KPropsLike, R>(
     @Suppress("UNCHECKED_CAST")
     override val javaQuery: ConfigurableRootQuery<TableLike<*>, R>
         get() = super.javaQuery as ConfigurableRootQuery<TableLike<*>, R>
+
+    override fun fetchUnlimitedCount(con: Connection?): Long =
+        if (con != null) {
+            javaQuery.fetchUnlimitedCount(con)
+        } else {
+            javaQuery.fetchUnlimitedCount()
+        }
+
+    override fun exists(con: Connection?): Boolean =
+        if (con != null) {
+            javaQuery.exists(con)
+        } else {
+            javaQuery.exists()
+        }
 
     override fun <P : Any> fetchPage(
         pageIndex: Int,
@@ -74,6 +92,7 @@ internal class KConfigurableRootQueryImpl<P: KPropsLike, R>(
         val reversedQuery = this
             .takeIf { offset + pageSize / 2 > total / 2 }
             ?.reverseSorting()
+            ?.takeIf { (it as KConfigurableRootQueryImpl<*, *>).javaQuery !== javaQuery }
 
         val entities: List<R> =
             if (reversedQuery != null) {
@@ -117,12 +136,20 @@ internal class KConfigurableRootQueryImpl<P: KPropsLike, R>(
     override fun fetchSlice(limit: Int, offset: Int, con: Connection?): Slice<R> =
         javaQuery.fetchSlice(limit, offset, con)
 
+    @Suppress("UNCHECKED_CAST")
     override fun <X> reselect(
         block: KMutableRootQuery<P>.() -> KConfigurableRootQuery<P, X>
     ): KConfigurableRootQuery<P, X> {
+        val javaTable = (javaQuery as ConfigurableRootQueryImpl<*, *>).mutableQuery.getTable<TableLike<*>>()
         val javaBlock = BiFunction<MutableRootQuery<TableLike<*>>, TableLike<*>, ConfigurableRootQuery<TableLike<*>, X>> { query, _ ->
-            // TODO: Not only for entity
-            val q = KMutableRootQueryImpl.ForEntityImpl<Any>(query as MutableRootQueryImpl<TableLike<*>>) as KMutableRootQuery<P>
+            val q = if (javaTable is BaseTable) {
+                KMutableRootQueryImpl.ForBaseTableImpl(
+                    query as MutableRootQueryImpl<TableLike<*>>,
+                    AbstractKBaseTableImpl.nonNull(javaTable)
+                ) as KMutableRootQuery<P>
+            } else {
+                KMutableRootQueryImpl.ForEntityImpl<Any>(query as MutableRootQueryImpl<TableLike<*>>) as KMutableRootQuery<P>
+            }
             (q.block() as KConfigurableRootQueryImpl<P, X>).javaQuery
         }
         return KConfigurableRootQueryImpl(javaQuery.reselect(javaBlock))
@@ -150,7 +177,7 @@ internal class KConfigurableRootQueryImpl<P: KPropsLike, R>(
 
     override fun setReverseSortOptimizationEnabled(
         enabled: Boolean
-    ): KConfigurableRootQuery<P, R>? =
+    ): KConfigurableRootQuery<P, R> =
         KConfigurableRootQueryImpl(javaQuery.setReverseSortOptimizationEnabled(enabled))
 
     override fun forUpdate(forUpdate: Boolean): KConfigurableRootQuery<P, R> =

@@ -1,7 +1,5 @@
 package org.babyfish.jimmer.apt.client;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonValue;
 import org.babyfish.jimmer.ClientException;
 import org.babyfish.jimmer.Immutable;
 import org.babyfish.jimmer.apt.Context;
@@ -633,7 +631,7 @@ public class ClientProcessor {
     private TypeRefImpl<Element> jsonValueTypeRef(TypeName typeName) {
         TypeElement typeElement = context.getElements().getTypeElement(typeName.toString());
         for (Element element : typeElement.getEnclosedElements()) {
-            if (element.getAnnotation(JsonValue.class) == null) {
+            if (Annotations.annotationMirror(element, context.getJacksonTypes().jsonValue) == null) {
                 continue;
             }
             if (element.getKind() != ElementKind.METHOD || element.getModifiers().contains(Modifier.STATIC)) {
@@ -648,7 +646,7 @@ public class ClientProcessor {
                         builder.ancestorSource(ApiOperationImpl.class, ApiParameterImpl.class),
                         builder.ancestorSource(),
                         "Cannot resolve \"@" +
-                                JsonValue.class.getName() +
+                                context.getJacksonTypes().jsonValue.reflectionName() +
                                 "\" because of dead recursion: " +
                                 jsonValueTypeNameStack
                 );
@@ -710,7 +708,7 @@ public class ClientProcessor {
                         !executableElement.getModifiers().contains(Modifier.PUBLIC) ||
                         executableElement.getReturnType().getKind() == TypeKind.VOID ||
                         executableElement.getAnnotation(ApiIgnore.class) != null ||
-                        executableElement.getAnnotation(JsonIgnore.class) != null
+                        Annotations.annotationMirror(executableElement, context.getJacksonTypes().jsonIgnore) != null
                 ) {
                     continue;
                 }
@@ -767,7 +765,7 @@ public class ClientProcessor {
                 if (prop == null) {
                     continue;
                 }
-                if (fieldElement.getAnnotation(JsonIgnore.class) != null) {
+                if (Annotations.annotationMirror(fieldElement, context.getJacksonTypes().jsonIgnore) != null) {
                     typeDefinition.getPropMap().remove(fieldElement.getSimpleName().toString());
                 }
                 if (prop.getDoc() == null) {

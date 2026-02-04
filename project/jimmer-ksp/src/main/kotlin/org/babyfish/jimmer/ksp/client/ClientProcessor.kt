@@ -1,7 +1,5 @@
 package org.babyfish.jimmer.ksp.client
 
-import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonValue
 import com.google.devtools.ksp.*
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.symbol.*
@@ -447,7 +445,7 @@ class ClientProcessor(
         val jsonValueFun = declaration
             .getDeclaredFunctions()
             .firstOrNull {
-                it.annotation(JsonValue::class) !== null &&
+                it.annotation(ctx.jacksonTypes.jsonValue.reflectionName()) !== null &&
                     it.parameters.isEmpty() &&
                     it.returnType?.realDeclaration?.qualifiedName?.asString().let { n ->
                         n != "kotlin.Unit" && n != "kotlin.Nothing"
@@ -458,7 +456,7 @@ class ClientProcessor(
                 ancestorSource(ApiOperationImpl::class.java, ApiParameterImpl::class.java),
                 ancestorSource(),
                 "Cannot resolve \"@" +
-                    JsonValue::class.java.getName() +
+                    ctx.jacksonTypes.jsonValue.reflectionName() +
                     "\" because of dead recursion: " +
                     jsonValueTypeNameStack
             )
@@ -498,7 +496,7 @@ class ClientProcessor(
             for (propDeclaration in declaration.getDeclaredProperties()) {
                 if (!propDeclaration.isPublic() ||
                     propDeclaration.annotation(ApiIgnore::class) != null ||
-                    propDeclaration.annotation(JsonIgnore::class) != null) {
+                    propDeclaration.annotation(ctx.jacksonTypes.jsonIgnore.reflectionName()) != null) {
                     continue
                 }
                 if (isClientException &&
@@ -538,7 +536,7 @@ class ClientProcessor(
                 if (!funcDeclaration.isConstructor() &&
                     funcDeclaration.isPublic() &&
                     funcDeclaration.parameters.isEmpty() &&
-                    funcDeclaration.annotation(JsonIgnore::class) == null &&
+                    funcDeclaration.annotation(ctx.jacksonTypes.jsonIgnore.reflectionName()) == null &&
                     funcDeclaration.annotation(ApiIgnore::class) == null) {
                     val returnTypReference = funcDeclaration.returnType ?: continue
                     val returnTypeName = returnTypReference.realDeclaration.qualifiedName?.asString() ?: continue

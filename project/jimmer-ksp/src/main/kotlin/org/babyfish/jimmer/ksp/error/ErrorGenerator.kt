@@ -1,6 +1,5 @@
 package org.babyfish.jimmer.ksp.error
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.symbol.ClassKind
@@ -23,6 +22,7 @@ import java.io.OutputStreamWriter
 import kotlin.reflect.KClass
 
 class ErrorGenerator(
+    private val ctx: Context,
     private val declaration: KSClassDeclaration,
     private val checkedException: Boolean,
     private val codeGenerator: CodeGenerator
@@ -285,7 +285,7 @@ class ErrorGenerator(
                 }
                 .addAnnotation(
                     AnnotationSpec
-                        .builder(JsonIgnore::class.asTypeName())
+                        .builder(ctx.jacksonTypes.jsonIgnore)
                         .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
                         .build()
                 )
