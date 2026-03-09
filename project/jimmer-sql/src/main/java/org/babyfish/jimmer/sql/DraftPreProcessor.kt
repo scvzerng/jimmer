@@ -80,7 +80,7 @@ interface DraftPreProcessor<D: Draft> {
     fun ignoreKeyOnly(group: KeyMatcher.Group) = false
 
     /**
-     * key match 之前对key进行修改以满足租户之类的延迟key设置需求
+     * Key Match modifies the key to meet the needs of deferred key settings, such as tenants
      */
     fun beforeKeyMatcher(draft: D, group: KeyMatcher.Group?){}
 }

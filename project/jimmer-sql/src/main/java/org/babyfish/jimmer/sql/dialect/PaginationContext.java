@@ -8,6 +8,8 @@ public interface PaginationContext {
 
     boolean isIdOnly();
 
+    boolean hasOrderBy();
+
     PaginationContext origin();
 
     PaginationContext space();

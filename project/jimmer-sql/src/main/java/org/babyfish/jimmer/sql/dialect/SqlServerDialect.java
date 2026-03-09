@@ -79,8 +79,13 @@ public class SqlServerDialect extends DefaultDialect {
 
     @Override
     public void paginate(PaginationContext ctx) {
-        ctx
-                .origin()
+
+        PaginationContext origin = ctx
+                .origin();
+        if (!ctx.hasOrderBy()) {
+            origin.sql(" order by (select null)");
+        }
+        origin
                 .sql(" offset ")
                 .variable(ctx.getOffset())
                 .sql(" rows fetch next ")
