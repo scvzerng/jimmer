@@ -1472,7 +1472,7 @@ class DtoGenerator private constructor(
                                 if (baseProp.isAssociation(true)) "getAssociatedIdConverter" else "getConverter",
                                 baseTypeName,
                                 propTypeName(prop).copy(nullable = false),
-                                if (baseProp.isAssociation(true) || prop.isFunc("valueIn", "valueNotIn")) "true" else ""
+                                if (prop.isFunc("associatedIdIn", "associatedIdNotIn", "valueIn", "valueNotIn")) "true" else ""
                             )
                         }
                     }
