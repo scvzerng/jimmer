@@ -5,6 +5,7 @@ import org.babyfish.jimmer.Immutable;
 import org.babyfish.jimmer.Input;
 import org.babyfish.jimmer.Specification;
 import org.babyfish.jimmer.View;
+import org.babyfish.jimmer.apt.client.DocMetadata;
 import org.babyfish.jimmer.apt.immutable.meta.ImmutableType;
 import org.babyfish.jimmer.sql.Embeddable;
 import org.babyfish.jimmer.sql.Entity;
@@ -29,7 +30,7 @@ public class Context {
 
     @SuppressWarnings("unchecked")
     private final static Class<? extends Annotation>[] SQL_TYPE_ANNOTATION_TYPES =
-            (Class<? extends Annotation>[]) new Class[] { Entity.class, MappedSuperclass.class, Embeddable.class };
+            (Class<? extends Annotation>[]) new Class[]{Entity.class, MappedSuperclass.class, Embeddable.class};
 
     private final Elements elements;
 
@@ -63,6 +64,8 @@ public class Context {
 
     private final String[] excludes;
 
+    private final boolean jackson3;
+
     private final String immutablesTypeName;
 
     private final String tablesTypeName;
@@ -78,6 +81,8 @@ public class Context {
     private final Modifier dtoFieldModifier;
 
     private final JacksonTypes jacksonTypes;
+
+    private final DocMetadata docMetadata;
 
     Context(
             Elements elements,
@@ -101,6 +106,7 @@ public class Context {
         this.keepIsPrefix = keepIsPrefix;
         this.includes = includes;
         this.excludes = excludes;
+        this.jackson3 = jackson3;
         objectType = elements
                 .getTypeElement(Object.class.getName())
                 .asType();
@@ -140,23 +146,23 @@ public class Context {
         comparableType = types
                 .getDeclaredType(
                         elements
-                        .getTypeElement(Comparable.class.getName()),
+                                .getTypeElement(Comparable.class.getName()),
                         types.getWildcardType(null, null)
                 );
         enumElement = elements.getTypeElement(Enum.class.getName());
         if (jackson3) {
             jacksonTypes = new JacksonTypes(
-                ClassName.get("com.fasterxml.jackson.annotation", "JsonIgnore"),
-                ClassName.get("com.fasterxml.jackson.annotation", "JsonValue"),
-                ClassName.get("com.fasterxml.jackson.annotation", "JsonPropertyOrder"),
-                ClassName.get("com.fasterxml.jackson.annotation", "JsonFormat"),
-                ClassName.get("tools.jackson.databind", "JsonSerializer"),
-                ClassName.get("tools.jackson.databind.annotation", "JsonSerialize"),
-                ClassName.get("tools.jackson.databind.annotation", "JsonDeserialize"),
-                ClassName.get("tools.jackson.databind.annotation", "JsonPOJOBuilder"),
-                ClassName.get("tools.jackson.databind.annotation", "JsonNaming"),
-                ClassName.get("tools.jackson.core", "JsonGenerator"),
-                ClassName.get("tools.jackson.databind", "SerializerProvider")
+                    ClassName.get("com.fasterxml.jackson.annotation", "JsonIgnore"),
+                    ClassName.get("com.fasterxml.jackson.annotation", "JsonValue"),
+                    ClassName.get("com.fasterxml.jackson.annotation", "JsonPropertyOrder"),
+                    ClassName.get("com.fasterxml.jackson.annotation", "JsonFormat"),
+                    ClassName.get("tools.jackson.databind", "ValueSerializer"),
+                    ClassName.get("tools.jackson.databind.annotation", "JsonSerialize"),
+                    ClassName.get("tools.jackson.databind.annotation", "JsonDeserialize"),
+                    ClassName.get("tools.jackson.databind.annotation", "JsonPOJOBuilder"),
+                    ClassName.get("tools.jackson.databind.annotation", "JsonNaming"),
+                    ClassName.get("tools.jackson.core", "JsonGenerator"),
+                    ClassName.get("tools.jackson.databind", "SerializationContext")
             );
         } else {
             jacksonTypes = new JacksonTypes(
@@ -173,6 +179,7 @@ public class Context {
                     ClassName.get("com.fasterxml.jackson.databind", "SerializerProvider")
             );
         }
+        this.docMetadata = new DocMetadata(this);
     }
 
     public Class<? extends Annotation> getImmutableAnnotationType(TypeElement typeElement) {
@@ -358,6 +365,10 @@ public class Context {
         return fetchersTypeName;
     }
 
+    public boolean isJackson3() {
+        return jackson3;
+    }
+
     public boolean isHibernateValidatorEnhancement() {
         return hibernateValidatorEnhancement;
     }
@@ -372,5 +383,9 @@ public class Context {
 
     public JacksonTypes getJacksonTypes() {
         return this.jacksonTypes;
+    }
+
+    public DocMetadata getDocMetadata() {
+        return this.docMetadata;
     }
 }

@@ -29,7 +29,7 @@ import java.sql.Connection
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
-interface KSqlClient : KDeprecatedMoreSaveOperations {
+interface KSqlClient : KSaveOperations {
 
     fun <E : Any, R> createQuery(
         entityType: KClass<E>,

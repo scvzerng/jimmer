@@ -9,13 +9,13 @@ import org.babyfish.jimmer.spring.cfg.SqlClientConfig;
 import org.babyfish.jimmer.spring.client.JavaFeignController;
 import org.babyfish.jimmer.spring.client.OpenApiController;
 import org.babyfish.jimmer.spring.client.OpenApiUiController;
-import org.babyfish.jimmer.spring.java.bll.BookService;
 import org.babyfish.jimmer.spring.client.TypeScriptController;
+import org.babyfish.jimmer.spring.datasource.DataSources;
+import org.babyfish.jimmer.spring.datasource.TxCallback;
+import org.babyfish.jimmer.spring.java.bll.BookService;
 import org.babyfish.jimmer.spring.java.bll.ErrorService;
 import org.babyfish.jimmer.spring.java.bll.resolver.BookStoreNewestBooksResolver;
 import org.babyfish.jimmer.spring.java.dal.BookRepository;
-import org.babyfish.jimmer.spring.datasource.DataSources;
-import org.babyfish.jimmer.spring.datasource.TxCallback;
 import org.babyfish.jimmer.spring.java.dal.BookStoreRepository;
 import org.babyfish.jimmer.spring.java.model.*;
 import org.babyfish.jimmer.spring.java.model.dto.BookSpecification;
@@ -26,7 +26,10 @@ import org.babyfish.jimmer.spring.repository.EnableJimmerRepositories;
 import org.babyfish.jimmer.spring.repository.config.JimmerRepositoryConfigExtension;
 import org.babyfish.jimmer.spring.repository.support.JimmerRepositoryFactoryBean;
 import org.babyfish.jimmer.sql.JSqlClient;
-import org.babyfish.jimmer.sql.runtime.*;
+import org.babyfish.jimmer.sql.runtime.DefaultExecutor;
+import org.babyfish.jimmer.sql.runtime.ExecutionPurpose;
+import org.babyfish.jimmer.sql.runtime.Executor;
+import org.babyfish.jimmer.sql.runtime.JSqlClientImplementor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.*;
@@ -38,7 +41,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
@@ -55,14 +57,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.springframework.test.web.servlet.setup.MockMvcBuilders.*;
-
 import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.util.*;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
 @SpringBootTest(properties = {
         "jimmer.client.ts.path=/my-ts.zip",
@@ -99,7 +102,7 @@ public class SpringJavaTest extends AbstractTest {
     }
 
     @EnableJimmerRepositories
-    @ConditionalOnMissingBean({ JimmerRepositoryFactoryBean.class, JimmerRepositoryConfigExtension.class })
+    @ConditionalOnMissingBean({JimmerRepositoryFactoryBean.class, JimmerRepositoryConfigExtension.class})
     @Configuration
     static class DuplicatedConfig {
         // Use @EnableJimmerRepositories twice,
@@ -886,7 +889,7 @@ public class SpringJavaTest extends AbstractTest {
         list.add(UUID.fromString("d38c10da-6be8-4924-b9b9-5e81899612a0"));
         Map<UUID, BookStore> map = bookStoreRepository.findMapByIds(list);
         assertContent("{\"id\":\"d38c10da-6be8-4924-b9b9-5e81899612a0\",\n" +
-                "\"name\":\"O'REILLY\"}",
+                        "\"name\":\"O'REILLY\"}",
                 map.get(UUID.fromString("d38c10da-6be8-4924-b9b9-5e81899612a0")));
     }
 
@@ -976,31 +979,46 @@ public class SpringJavaTest extends AbstractTest {
                 .andReturn();
         Thread.sleep(200);
         Assertions.assertEquals(
-                "<!DOCTYPE html>\n" +
+                "<!-- HTML for static distribution bundle build -->\n" +
+                        "<!DOCTYPE html>\n" +
                         "<html lang=\"en\">\n" +
-                        "<head>\n" +
-                        "  <link rel=\"icon\" href=\"./favicon.ico\" type=\"image/x-icon\">\n" +
-                        "  <meta charset=\"utf-8\" />\n" +
-                        "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n" +
-                        "  <meta\n" +
-                        "    name=\"description\"\n" +
-                        "    content=\"SwaggerUI\"\n" +
-                        "  />\n" +
-                        "  <title>Jimmer-SwaggerUI</title>\n" +
-                        "  <link rel=\"stylesheet\" href=\"https://unpkg.com/swagger-ui-dist@5.10.5/swagger-ui.css\" />\n" +
-                        "</head>\n" +
-                        "<body>\n" +
-                        "<div id=\"swagger-ui\"></div>\n" +
-                        "<script src=\"https://unpkg.com/swagger-ui-dist@5.10.5/swagger-ui-bundle.js\" crossorigin></script>\n" +
-                        "<script>\n" +
-                        "  window.onload = () => {\n" +
-                        "    window.ui = SwaggerUIBundle({\n" +
-                        "      url: '/my-openapi.yml',\n" +
-                        "      dom_id: '#swagger-ui',\n" +
-                        "    });\n" +
-                        "  };\n" +
-                        "</script>\n" +
-                        "</body>\n" +
+                        "  <head>\n" +
+                        "    <meta charset=\"UTF-8\">\n" +
+                        "    <title>Swagger UI</title>\n" +
+                        "    <link rel=\"stylesheet\" type=\"text/css\" href=\"./swagger-ui.css\" />\n" +
+                        "    <link rel=\"stylesheet\" type=\"text/css\" href=\"index.css\" />\n" +
+                        "    <link rel=\"icon\" type=\"image/png\" href=\"./favicon-32x32.png\" sizes=\"32x32\" />\n" +
+                        "    <link rel=\"icon\" type=\"image/png\" href=\"./favicon-16x16.png\" sizes=\"16x16\" />\n" +
+                        "  </head>\n" +
+                        "\n" +
+                        "  <body>\n" +
+                        "    <div id=\"swagger-ui\"></div>\n" +
+                        "    <script src=\"./swagger-ui-bundle.js\" charset=\"UTF-8\"> </script>\n" +
+                        "    <script src=\"./swagger-ui-standalone-preset.js\" charset=\"UTF-8\"> </script>\n" +
+                        "    <script>\n" +
+                        "      window.onload = function() {\n" +
+                        "        //<editor-fold desc=\"Changeable Configuration Block\">\n" +
+                        "\n" +
+                        "        // the following lines will be replaced by docker/configurator, when it runs in a docker-container\n" +
+                        "        window.ui = SwaggerUIBundle({\n" +
+                        "          url: '/my-openapi.yml',\n" +
+                        "          dom_id: '#swagger-ui',\n" +
+                        "          deepLinking: true,\n" +
+                        "          presets: [\n" +
+                        "            SwaggerUIBundle.presets.apis,\n" +
+                        "            SwaggerUIStandalonePreset\n" +
+                        "          ],\n" +
+                        "          plugins: [\n" +
+                        "            SwaggerUIBundle.plugins.DownloadUrl\n" +
+                        "          ],\n" +
+                        "          layout: \"StandaloneLayout\"\n" +
+                        "        });\n" +
+                        "\n" +
+                        "        //</editor-fold>\n" +
+                        "      };\n" +
+                        "\n" +
+                        "    </script>\n" +
+                        "  </body>\n" +
                         "</html>\n",
                 result.getResponse().getContentAsString()
         );
@@ -1014,7 +1032,7 @@ public class SpringJavaTest extends AbstractTest {
                 .andExpect(content().contentTypeCompatibleWith("application/zip"));
     }
 
-    private static void assertTransactionEvents(String ... events) {
+    private static void assertTransactionEvents(String... events) {
         try {
             Assertions.assertEquals(Arrays.asList(events), TRANSACTION_EVENTS);
         } finally {
@@ -1022,7 +1040,7 @@ public class SpringJavaTest extends AbstractTest {
         }
     }
 
-    private static void assertSQLs(String ... statements) {
+    private static void assertSQLs(String... statements) {
         try {
             for (int i = 0; i < Math.min(statements.length, SQL_STATEMENTS.size()); i++) {
                 Assertions.assertEquals(statements[i].replace("--->", ""), SQL_STATEMENTS.get(i), "sql[" + i + ']');

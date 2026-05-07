@@ -1,6 +1,7 @@
 plugins {
     `kotlin-convention`
     alias(libs.plugins.ksp)
+    alias(libs.plugins.buildconfig)
 }
 
 dependencies {
@@ -9,8 +10,9 @@ dependencies {
     api(projects.jimmerClient)
     api(libs.spring.boot.starter.jdbc)
     api(libs.spring.data.commons)
-    api(libs.jackson.module.kotlin)
 
+    compileOnly(libs.jackson2.databind)
+    compileOnly(libs.jackson3.databind)
     compileOnly(libs.spring.boot.starter.web)
     compileOnly(libs.spring.data.redis)
     compileOnly(libs.caffeine)
@@ -19,15 +21,24 @@ dependencies {
     compileOnly(libs.springdoc.openapi.common)
 
     annotationProcessor(libs.spring.boot.configurationProcessor)
-    testAnnotationProcessor(projects.jimmerApt)
-    kspTest(projects.jimmerKsp)
 
-    testImplementation(libs.lombok)
+    testAnnotationProcessor(projects.jimmerApt)
     testAnnotationProcessor(libs.lombok)
 
+    kspTest(projects.jimmerKsp)
+
     testImplementation(libs.spring.boot.starter.test)
-    testImplementation(libs.h2)
     testImplementation(libs.spring.boot.starter.web)
+    testImplementation(libs.h2)
+    testRuntimeOnly(libs.bundles.jackson)
+    testRuntimeOnly(projects.jimmerClientSwagger)
+}
+
+buildConfig {
+    packageName("org.babyfish.jimmer.spring.cfg")
+    className("SwaggerUiVersion")
+    useJavaOutput()
+    buildConfigField("String", "DEFAULT_VALUE", "\"${libs.versions.swaggerUi.get()}\"")
 }
 
 kotlin {

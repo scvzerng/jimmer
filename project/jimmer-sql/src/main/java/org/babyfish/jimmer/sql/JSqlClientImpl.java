@@ -1,22 +1,19 @@
 package org.babyfish.jimmer.sql;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.babyfish.jimmer.impl.util.ClassCache;
 import org.babyfish.jimmer.impl.util.Classes;
+import org.babyfish.jimmer.jackson.codec.JsonCodec;
 import org.babyfish.jimmer.lang.OldChain;
 import org.babyfish.jimmer.meta.*;
 import org.babyfish.jimmer.sql.association.meta.AssociationProp;
 import org.babyfish.jimmer.sql.association.meta.AssociationType;
-import org.babyfish.jimmer.sql.ast.Predicate;
 import org.babyfish.jimmer.sql.ast.impl.EntitiesImpl;
-import org.babyfish.jimmer.sql.ast.impl.base.BaseTableSymbol;
 import org.babyfish.jimmer.sql.ast.impl.base.BaseTableSymbols;
 import org.babyfish.jimmer.sql.ast.impl.mutation.AssociationsImpl;
 import org.babyfish.jimmer.sql.ast.impl.mutation.MutableDeleteImpl;
 import org.babyfish.jimmer.sql.ast.impl.mutation.MutableUpdateImpl;
 import org.babyfish.jimmer.sql.ast.impl.query.*;
 import org.babyfish.jimmer.sql.ast.impl.table.JWeakJoinLambdaFactory;
-import org.babyfish.jimmer.sql.ast.impl.table.TableProxies;
 import org.babyfish.jimmer.sql.ast.impl.table.WeakJoinHandle;
 import org.babyfish.jimmer.sql.ast.impl.table.WeakJoinLambda;
 import org.babyfish.jimmer.sql.ast.mutation.MutableDelete;
@@ -501,7 +498,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
                 lambda,
                 true,
                 true,
-                (WeakJoin<TableLike<?>, TableLike<?>>)(WeakJoin<?, ?>) weakJoinLambda
+                (WeakJoin<TableLike<?>, TableLike<?>>) (WeakJoin<?, ?>) weakJoinLambda
         );
         R recursiveTable = (R) BaseTableSymbols.of(recursiveRef, table, handle, JoinType.INNER);
         return new MutableRecursiveBaseQueryImpl<>(this, table, recursiveTable);
@@ -608,7 +605,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
 
     @Override
     public CacheOperator getCacheOperator() {
-        return ((CachesImpl)caches).getOperator();
+        return ((CachesImpl) caches).getOperator();
     }
 
     @Override
@@ -996,7 +993,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
             );
         }
         return getDialect().isUpsertWithMultipleUniqueConstraintSupported() ||
-            keyUniqueConstraint.noMoreUniqueConstraints();
+                keyUniqueConstraint.noMoreUniqueConstraints();
     }
 
     public static class BuilderImpl implements JSqlClientImplementor.Builder {
@@ -1035,9 +1032,9 @@ class JSqlClientImpl implements JSqlClientImplementor {
 
         private PropScalarProviderFactory propScalarProviderFactory;
 
-        private final Map<Class<?>, ObjectMapper> serializedTypeObjectMapperMap = new HashMap<>();
+        private final Map<Class<?>, JsonCodec<?>> serializedTypeJsonCodecMap = new HashMap<>();
 
-        private final Map<ImmutableProp, ObjectMapper> serializedPropObjectMapperMap = new HashMap<>();
+        private final Map<ImmutableProp, JsonCodec<?>> serializedPropJsonCodecMap = new HashMap<>();
 
         private Function<ImmutableProp, ScalarProvider<?, ?>> defaultJsonProviderCreator;
 
@@ -1098,7 +1095,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
 
         private final List<DraftInterceptor<?, ?>> interceptors = new ArrayList<>();
 
-        private ObjectMapper binLogObjectMapper;
+        private JsonCodec<?> binLogJsonCodec;
 
         private final Map<ImmutableProp, BinLogPropReader> binLogPropReaderMap = new HashMap<>();
 
@@ -1128,7 +1125,8 @@ class JSqlClientImpl implements JSqlClientImplementor {
 
         private MicroServiceExchange microServiceExchange;
 
-        public BuilderImpl() {}
+        public BuilderImpl() {
+        }
 
         @Override
         public ConnectionManager getConnectionManager() {
@@ -1396,40 +1394,40 @@ class JSqlClientImpl implements JSqlClientImplementor {
         }
 
         @Override
-        public Builder setDefaultSerializedTypeObjectMapper(ObjectMapper mapper) {
-            return setSerializedTypeObjectMapper(Object.class, mapper);
+        public Builder setDefaultSerializedTypeJsonCodec(JsonCodec<?> jsonCodec) {
+            return setSerializedTypeJsonCodec(Object.class, jsonCodec);
         }
 
         @Override
-        public Builder setSerializedTypeObjectMapper(Class<?> type, ObjectMapper mapper) {
-            if (mapper != null) {
-                serializedTypeObjectMapperMap.put(type != null ? type : Object.class, mapper);
+        public Builder setSerializedTypeJsonCodec(Class<?> type, JsonCodec<?> jsonCodec) {
+            if (jsonCodec != null) {
+                serializedTypeJsonCodecMap.put(type != null ? type : Object.class, jsonCodec);
             } else {
-                serializedTypeObjectMapperMap.remove(type != null ? type : Object.class);
+                serializedTypeJsonCodecMap.remove(type != null ? type : Object.class);
             }
             return this;
         }
 
         @Override
-        public Builder setSerializedPropObjectMapper(TypedProp<?, ?> prop, ObjectMapper mapper) {
-            return setSerializedPropObjectMapper(prop.unwrap(), mapper);
+        public Builder setSerializedPropJsonCodec(TypedProp<?, ?> prop, JsonCodec<?> jsonCodec) {
+            return setSerializedPropJsonCodec(prop.unwrap(), jsonCodec);
         }
 
         @Override
-        public Builder setSerializedPropObjectMapper(ImmutableProp prop, ObjectMapper mapper) {
+        public Builder setSerializedPropJsonCodec(ImmutableProp prop, JsonCodec<?> jsonCodec) {
             if (prop.getAnnotation(Serialized.class) == null) {
                 throw new IllegalArgumentException(
-                        "Cannot set the serialized property object mapper for \"" +
+                        "Cannot set the serialized property json codec for \"" +
                                 prop +
                                 "\" because it is not decorated by \"@" +
                                 Serialized.class.getName() +
                                 "\""
                 );
             }
-            if (mapper != null) {
-                serializedPropObjectMapperMap.put(prop, mapper);
+            if (jsonCodec != null) {
+                serializedPropJsonCodecMap.put(prop, jsonCodec);
             } else {
-                serializedTypeObjectMapperMap.remove(prop);
+                serializedTypeJsonCodecMap.remove(prop);
             }
             return this;
         }
@@ -1670,8 +1668,8 @@ class JSqlClientImpl implements JSqlClientImplementor {
         }
 
         @Override
-        public Builder setDefaultBinLogObjectMapper(ObjectMapper mapper) {
-            this.binLogObjectMapper = mapper;
+        public Builder setDefaultBinLogJsonCodec(JsonCodec<?> jsonCodec) {
+            this.binLogJsonCodec = jsonCodec;
             return this;
         }
 
@@ -1796,7 +1794,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
         }
 
         @Override
-        public Builder addInitializers(Initializer ... initializers) {
+        public Builder addInitializers(Initializer... initializers) {
             for (Initializer initializer : initializers) {
                 if (initializer != null) {
                     this.initializers.add(initializer);
@@ -1877,8 +1875,8 @@ class JSqlClientImpl implements JSqlClientImplementor {
                     typeScalarProviderMap,
                     propScalarProviderMap,
                     propScalarProviderFactory,
-                    serializedTypeObjectMapperMap,
-                    serializedPropObjectMapperMap,
+                    serializedTypeJsonCodecMap,
+                    serializedPropJsonCodecMap,
                     defaultJsonProviderCreator,
                     defaultEnumStrategy,
                     dialect
@@ -1968,7 +1966,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
             );
             CachesImpl.initialize(caches, sqlClient);
             filterManager.initialize(sqlClient);
-            binLogParser.initialize(sqlClient, binLogObjectMapper, binLogPropReaderMap, typeBinLogPropReaderMap);
+            binLogParser.initialize(sqlClient, binLogJsonCodec, binLogPropReaderMap, typeBinLogPropReaderMap);
             transientResolverManager.initialize(sqlClient);
             triggers.initialize(sqlClient);
             if (transactionTriggers != null && transactionTriggers != triggers) {

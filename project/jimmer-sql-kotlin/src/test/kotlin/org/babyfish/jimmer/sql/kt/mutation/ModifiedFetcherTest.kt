@@ -18,18 +18,19 @@ class ModifiedFetcherTest : AbstractMutationTest() {
     @Test
     fun testIssue982ByQueryDraft() {
         connectAndExpect({ con ->
-            sqlClient.entities.forConnection(con).save(
+            sqlClient.entities.forConnection(con).saveCommand(
                 Employee {
                     id = 1L
                     employeeName = "Johe"
-                },
+                }
+            ) {
+                setMode(SaveMode.UPDATE_ONLY)
+            }.execute(
                 newFetcher(Employee::class).by {
                     employeeName()
                     deletedUUID()
                 }
-            ) {
-                setMode(SaveMode.UPDATE_ONLY)
-            }.modifiedEntity
+            ).modifiedEntity
         }) {
             statement {
                 sql("update EMPLOYEE set NAME = ? where ID = ?")
@@ -44,18 +45,19 @@ class ModifiedFetcherTest : AbstractMutationTest() {
     @Test
     fun testIssue982ByQueryImmutable() {
         connectAndExpect({ con ->
-            sqlClient.entities.forConnection(con).save(
+            sqlClient.entities.forConnection(con).saveCommand(
                 Book {
                     id = 1L
                     name = "Learning GraphQL protocol"
-                },
+                }
+            ) {
+                setMode(SaveMode.UPDATE_ONLY)
+            }.execute(
                 newFetcher(Book::class).by {
                     name()
                     edition()
                 }
-            ) {
-                setMode(SaveMode.UPDATE_ONLY)
-            }.modifiedEntity
+            ).modifiedEntity
         }) {
             statement {
                 sql("update BOOK set NAME = ? where ID = ?")

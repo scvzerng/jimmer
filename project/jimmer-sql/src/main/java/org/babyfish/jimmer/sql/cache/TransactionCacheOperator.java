@@ -1,20 +1,19 @@
 package org.babyfish.jimmer.sql.cache;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.babyfish.jimmer.jackson.ImmutableModule;
+import org.babyfish.jimmer.jackson.codec.JsonCodec;
 import org.babyfish.jimmer.meta.ImmutableProp;
 import org.babyfish.jimmer.meta.ImmutableType;
 import org.babyfish.jimmer.sql.cache.spi.AbstractCacheOperator;
-import org.babyfish.jimmer.sql.runtime.ConnectionManager;
 import org.babyfish.jimmer.sql.exception.ExecutionException;
+import org.babyfish.jimmer.sql.runtime.ConnectionManager;
 import org.babyfish.jimmer.sql.runtime.JSqlClientImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.*;
+
+import static org.babyfish.jimmer.jackson.codec.JsonCodec.jsonCodec;
 
 public class TransactionCacheOperator extends AbstractCacheOperator {
 
@@ -32,52 +31,9 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
 
     private static final String REASON = "REASON";
 
-    private static final String INSERT =
-            "insert into " +
-                    TABLE_NAME + "(" +
-                    IMMUTABLE_TYPE +
-                    ", " +
-                    IMMUTABLE_PROP +
-                    ", " +
-                    CACHE_KEY +
-                    ", " +
-                    REASON +
-                    ") values(?, ?, ?, ?)";
+    private Sql sql;
 
-    private static final String SELECT_ID_PREFIX =
-            "select " +
-                    ID +
-                    " from " +
-                    TABLE_NAME +
-                    " order by " +
-                    ID +
-                    " limit ";
-
-    private static final String SELECT_PREFIX =
-            "select " +
-                    ID +
-                    ", " +
-                    IMMUTABLE_TYPE +
-                    ", " +
-                    IMMUTABLE_PROP +
-                    ", " +
-                    CACHE_KEY +
-                    ", " +
-                    REASON +
-                    " from " +
-                    TABLE_NAME +
-                    " where " +
-                    ID +
-                    " in";
-
-    private static final String DELETE_PREFIX =
-            "delete from " +
-                    TABLE_NAME +
-                    " where " +
-                    ID +
-                    " in";
-
-    private final ObjectMapper mapper;
+    private final JsonCodec<?> jsonCodec;
 
     private final int batchSize;
 
@@ -89,24 +45,26 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
         this(null, batchSize);
     }
 
-    public TransactionCacheOperator(ObjectMapper mapper) {
-        this(mapper, 32);
+    public TransactionCacheOperator(JsonCodec<?> jsonCodec) {
+        this(jsonCodec, 32);
     }
 
-    public TransactionCacheOperator(ObjectMapper mapper, int batchSize) {
+    public TransactionCacheOperator(JsonCodec<?> jsonCodec, int batchSize) {
         if (batchSize < 1) {
             throw new IllegalArgumentException("`batchSize` cannot be less than 1");
         }
-        this.mapper = mapper != null ?
-                mapper :
-                new ObjectMapper()
-                        .registerModule(new JavaTimeModule())
-                        .registerModule(new ImmutableModule());
+        this.jsonCodec = jsonCodec != null ? jsonCodec : jsonCodec();
         this.batchSize = batchSize;
     }
 
     @Override
     protected void onInitialize(JSqlClientImplementor sqlClient) {
+        String schema = sqlClient.getMetadataStrategy().getSchemaStrategy().systemTableSchema();
+        String qualifiedTableName = schema == null || schema.isEmpty()
+                ? TABLE_NAME
+                : schema + "." + TABLE_NAME;
+        sql = new Sql(qualifiedTableName);
+
         ConnectionManager connectionManager = sqlClient.getConnectionManager();
         if (connectionManager == null) {
             throw new IllegalArgumentException("The `sqlClient` must support connection manager");
@@ -115,8 +73,8 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
             try {
                 try (ResultSet rs = con.getMetaData().getTables(
                         con.getCatalog(),
-                        con.getSchema(),
-                        "JIMMER_TRANS_CACHE_OPERATOR",
+                        schema == null || schema.isEmpty() ? con.getSchema() : schema,
+                        TABLE_NAME,
                         null
                 )) {
                     if (rs.next()) {
@@ -125,8 +83,8 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
                 }
                 try (ResultSet rs = con.getMetaData().getTables(
                         null,
-                        null,
-                        "jimmer_trans_cache_operator",
+                        schema == null || schema.isEmpty() ? null : schema.toLowerCase(),
+                        TABLE_NAME.toLowerCase(),
                         null
                 )) {
                     if (rs.next()) {
@@ -134,18 +92,26 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
                     }
                 }
                 try (Statement statement = con.createStatement()) {
-                    statement.execute(sqlClient.getDialect().transCacheOperatorTableDDL());
+                    String ddl = sqlClient.getDialect().transCacheOperatorTableDDL()
+                            .replace(TABLE_NAME, qualifiedTableName);
+                    statement.execute(ddl);
                 }
                 return null;
-            } catch(SQLException ex) {
+            } catch (SQLException ex) {
                 throw new ExecutionException(
-                        "Cannot create table `" +
-                                TransactionCacheOperator.TABLE_NAME +
-                                "`",
+                        "Cannot create table `" + qualifiedTableName + "`",
                         ex
                 );
             }
         });
+    }
+
+    private Sql sql() {
+        Sql s = sql;
+        if (s == null) {
+            throw new IllegalStateException("The current cache operator has not been initialized");
+        }
+        return s;
     }
 
     @Override
@@ -179,17 +145,17 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
     ) {
         sqlClient().getConnectionManager().execute(con -> {
             try {
-                try (PreparedStatement stmt = con.prepareStatement(INSERT)) {
+                try (PreparedStatement stmt = con.prepareStatement(sql().insert)) {
                     for (Object key : keys) {
                         stmt.setString(1, type != null ? type.toString() : null);
                         stmt.setString(2, prop != null ? prop.toString() : null);
-                        stmt.setString(3, mapper.writeValueAsString(key));
+                        stmt.setString(3, jsonCodec.writer().writeAsString(key));
                         stmt.setString(4, reason);
                         stmt.addBatch();
                     }
                     stmt.executeBatch();
                 }
-            } catch (SQLException | JsonProcessingException ex) {
+            } catch (Exception ex) {
                 throw new ExecutionException("Failed to save delayed cache deletion", ex);
             }
             return null;
@@ -221,7 +187,7 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
     }
 
     private List<Long> selectOperationIds(Connection con) {
-        String sql = SELECT_ID_PREFIX + batchSize;
+        String sql = sql().selectIdPrefix + batchSize;
         List<Long> ids = new ArrayList<>();
         try (PreparedStatement stmt = con.prepareStatement(sql)) {
             try (ResultSet rs = stmt.executeQuery()) {
@@ -238,7 +204,7 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
     @SuppressWarnings("unchecked")
     private Map<MergedKey, Set<Object>> getAndLockOperationKeyMap(Collection<Long> ids, Connection con) {
         StringBuilder builder = new StringBuilder();
-        builder.append(SELECT_PREFIX).append('(');
+        builder.append(sql().selectPrefix).append('(');
         for (int i = ids.size(); i > 0; --i) {
             builder.append('?');
             if (i > 1) {
@@ -257,12 +223,10 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
                     ImmutableType type = typeFromString(rs.getString(2));
                     ImmutableProp prop = propFromString(rs.getString(3));
                     String json = rs.getString(4);
-                    Object key = mapper.readValue(
-                            json,
-                            type != null ?
-                                    (Class<Object>)type.getIdProp().getElementClass() :
-                                    (Class<Object>)prop.getDeclaringType().getIdProp().getElementClass()
-                    );
+                    Object key = jsonCodec.readerFor(type != null ?
+                                    (Class<Object>) type.getIdProp().getElementClass() :
+                                    (Class<Object>) prop.getDeclaringType().getIdProp().getElementClass())
+                            .read(json);
                     String reason = rs.getString(5);
                     keyMap
                             .computeIfAbsent(new MergedKey(type, prop, reason), it -> new LinkedHashSet<>())
@@ -296,7 +260,7 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
 
     private void deleteOperations(Collection<Long> ids, Connection con) {
         StringBuilder builder = new StringBuilder();
-        builder.append(DELETE_PREFIX).append('(');
+        builder.append(sql().deletePrefix).append('(');
         for (int i = ids.size(); i > 0; --i) {
             builder.append('?');
             if (i > 1) {
@@ -337,6 +301,60 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
         }
         return typeFromString(propPath.substring(0, lastDotIndex))
                 .getProp(propPath.substring(lastDotIndex + 1));
+    }
+
+    private static class Sql {
+
+        final String insert;
+
+        final String selectIdPrefix;
+
+        final String selectPrefix;
+
+        final String deletePrefix;
+
+        Sql(String qualifiedTableName) {
+            insert = "insert into " +
+                    qualifiedTableName + "(" +
+                    IMMUTABLE_TYPE +
+                    ", " +
+                    IMMUTABLE_PROP +
+                    ", " +
+                    CACHE_KEY +
+                    ", " +
+                    REASON +
+                    ") values(?, ?, ?, ?)";
+
+            selectIdPrefix = "select " +
+                    ID +
+                    " from " +
+                    qualifiedTableName +
+                    " order by " +
+                    ID +
+                    " limit ";
+
+            selectPrefix = "select " +
+                    ID +
+                    ", " +
+                    IMMUTABLE_TYPE +
+                    ", " +
+                    IMMUTABLE_PROP +
+                    ", " +
+                    CACHE_KEY +
+                    ", " +
+                    REASON +
+                    " from " +
+                    qualifiedTableName +
+                    " where " +
+                    ID +
+                    " in";
+
+            deletePrefix = "delete from " +
+                    qualifiedTableName +
+                    " where " +
+                    ID +
+                    " in";
+        }
     }
 
     private static class MergedKey {

@@ -1,5 +1,7 @@
 package org.babyfish.jimmer.sql.kt.query
 
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import org.babyfish.jimmer.jackson.v2.JsonCodecV2
 import org.babyfish.jimmer.sql.ast.SqlTimeUnit
 import org.babyfish.jimmer.sql.dialect.H2Dialect
 import org.babyfish.jimmer.sql.kt.ast.expression.diff
@@ -10,6 +12,7 @@ import org.babyfish.jimmer.sql.kt.model.inheritance.Administrator
 import org.babyfish.jimmer.sql.kt.model.inheritance.createdTime
 import org.babyfish.jimmer.sql.kt.model.inheritance.id
 import org.babyfish.jimmer.sql.kt.model.inheritance.modifiedTime
+import tools.jackson.databind.json.JsonMapper
 import kotlin.test.Test
 
 class SqlFunctionTest : AbstractQueryTest() {
@@ -32,7 +35,7 @@ class SqlFunctionTest : AbstractQueryTest() {
                     |where tb_1_.ID = ? and tb_1_.DELETED <> ?""".trimMargin()
             )
             rows(
-                """[{"_1":[2022,10,3,0,10],"_2":[2022,8,3,0,10]}]"""
+                """[{"_1":"2022-10-03T00:10:00","_2":"2022-08-03T00:10:00"}]"""
             )
         }
     }
