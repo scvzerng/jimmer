@@ -1410,7 +1410,7 @@ public class DtoGenerator {
                     baseTypeName,
                     getPropTypeName(prop).box(),
                     baseProp.isAssociation(true) ?
-                            "getAssociatedIdConverter(" + (prop.isFunc("associatedIdIn", "associatedIdNotIn") ? "true" : "") + ")" :
+                            "getAssociatedIdConverter(true)" :
                             "getConverter(" + (prop.isFunc("valueIn", "valueNotIn") ? "true" : "") + ")"
             );
         }
