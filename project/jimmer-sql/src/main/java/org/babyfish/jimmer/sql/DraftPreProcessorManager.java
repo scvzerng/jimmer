@@ -6,6 +6,7 @@ import org.babyfish.jimmer.lang.Generics;
 import org.babyfish.jimmer.meta.ImmutableType;
 import org.babyfish.jimmer.meta.KeyMatcher;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.lang.reflect.Type;
 import java.util.*;
@@ -125,6 +126,13 @@ class DraftPreProcessorManager {
                     }
                 }
                 return false;
+            }
+
+            @Override
+            public void beforeKeyMatcher(@NonNull Draft draft, KeyMatcher.Group group) {
+                for (DraftPreProcessor<?> processor : processors) {
+                    ((DraftPreProcessor<Draft>)processor).beforeKeyMatcher(draft, group);
+                }
             }
         };
     }
