@@ -259,4 +259,12 @@ abstract class AbstractCommandImpl {
             this.mapNode = new MapNode<>(p != null ? p.mapNode : null, prop, action);
         }
     }
+
+    static class DisableCircularDeleteDetectionCfg extends Cfg {
+        final boolean disableCircularDeleteDetection;
+        DisableCircularDeleteDetectionCfg(Cfg prev, boolean disableCircularDeleteDetection) {
+            super(prev);
+            this.disableCircularDeleteDetection = disableCircularDeleteDetection;
+        }
+    }
 }

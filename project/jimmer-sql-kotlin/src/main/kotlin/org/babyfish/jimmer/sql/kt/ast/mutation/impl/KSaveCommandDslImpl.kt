@@ -36,6 +36,10 @@ internal class KSaveCommandDslImpl(
         javaCommand = javaCommand.setAssociatedModeAll(mode)
     }
 
+    override fun setDisableCircularDeleteDetection(disable: Boolean) {
+        javaCommand = javaCommand.setDisableCircularDeleteDetection(disable)
+    }
+
     override fun setAssociatedMode(prop: KProperty1<*, *>, mode: AssociatedSaveMode) {
         javaCommand = javaCommand.setAssociatedMode(prop.toImmutableProp(), mode)
     }

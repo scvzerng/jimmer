@@ -143,6 +143,8 @@ class JSqlClientImpl implements JSqlClientImplementor {
 
     private final IdOnlyTargetCheckingLevel idOnlyTargetCheckingLevel;
 
+    private final boolean disableCircularDeleteDetection;
+
     private final DraftPreProcessorManager draftPreProcessorManager;
 
     private final DraftInterceptorManager draftInterceptorManager;
@@ -181,6 +183,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
             boolean explicitBatchEnabled,
             boolean dumbBatchAcceptable,
             boolean constraintViolationTranslatable,
+            boolean disableCircularDeleteDetection,
             ExceptionTranslator<Exception> exceptionTranslator,
             EntitiesImpl entities,
             EntityManager entityManager,
@@ -257,6 +260,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
         this.transientResolverManager = transientResolverManager;
         this.defaultDissociationActionCheckable = defaultDissociationActionCheckable;
         this.idOnlyTargetCheckingLevel = idOnlyTargetCheckingLevel;
+        this.disableCircularDeleteDetection = disableCircularDeleteDetection;
         this.draftPreProcessorManager = draftPreProcessorManager;
         this.draftInterceptorManager = draftInterceptorManager;
         this.microServiceName = microServiceName;
@@ -438,6 +442,11 @@ class JSqlClientImpl implements JSqlClientImplementor {
     @Override
     public boolean isDissociationLogicalDeleteEnabled() {
         return dissociationLogicalDeleteEnabled;
+    }
+
+    @Override
+    public boolean isCircularDeleteDetectionDisabled() {
+        return disableCircularDeleteDetection;
     }
 
     @Override
@@ -702,6 +711,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
                 explicitBatchEnabled,
                 dumbBatchAcceptable,
                 constraintViolationTranslatable,
+                disableCircularDeleteDetection,
                 exceptionTranslator,
                 entities,
                 entityManager,
@@ -758,6 +768,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
                 explicitBatchEnabled,
                 dumbBatchAcceptable,
                 constraintViolationTranslatable,
+                disableCircularDeleteDetection,
                 exceptionTranslator,
                 entities,
                 entityManager,
@@ -809,6 +820,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
                 explicitBatchEnabled,
                 dumbBatchAcceptable,
                 constraintViolationTranslatable,
+                disableCircularDeleteDetection,
                 exceptionTranslator,
                 entities,
                 entityManager,
@@ -863,6 +875,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
                 explicitBatchEnabled,
                 dumbBatchAcceptable,
                 constraintViolationTranslatable,
+                disableCircularDeleteDetection,
                 exceptionTranslator,
                 entities,
                 entityManager,
@@ -1073,6 +1086,8 @@ class JSqlClientImpl implements JSqlClientImplementor {
 
         private IdOnlyTargetCheckingLevel idOnlyTargetCheckingLevel =
                 IdOnlyTargetCheckingLevel.NONE;
+
+        private boolean disableCircularDeleteDetection = false;
 
         private boolean saveCommandPessimisticLock = false;
 
@@ -1826,6 +1841,12 @@ class JSqlClientImpl implements JSqlClientImplementor {
         }
 
         @Override
+        public JSqlClient.Builder setDisableCircularDeleteDetection(boolean disable) {
+            this.disableCircularDeleteDetection = disable;
+            return this;
+        }
+
+        @Override
         public JSqlClient build() {
             if (!microServiceName.isEmpty() && microServiceExchange == null) {
                 throw new IllegalStateException(
@@ -1922,6 +1943,7 @@ class JSqlClientImpl implements JSqlClientImplementor {
                     explicitBatchEnabled,
                     dumbBatchAcceptable,
                     constraintViolationTranslatable,
+                    disableCircularDeleteDetection,
                     ExceptionTranslator.of(exceptionTranslators),
                     null,
                     entityManager(),

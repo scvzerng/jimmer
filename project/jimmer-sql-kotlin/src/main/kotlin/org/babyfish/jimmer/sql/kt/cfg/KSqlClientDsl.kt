@@ -273,6 +273,10 @@ class KSqlClientDsl constructor(
         javaBuilder.setDefaultDissociateActionCheckable(checkable)
     }
 
+    fun setDisableCircularDeleteDetection(checkable: Boolean) {
+        javaBuilder.setDisableCircularDeleteDetection(checkable)
+    }
+
     fun setIdOnlyTargetCheckingLevel(checkingLevel: IdOnlyTargetCheckingLevel) {
         javaBuilder.setIdOnlyTargetCheckingLevel(checkingLevel)
     }

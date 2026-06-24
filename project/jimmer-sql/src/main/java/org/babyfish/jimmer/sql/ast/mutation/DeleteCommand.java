@@ -35,4 +35,7 @@ public interface DeleteCommand extends Executable<DeleteResult> {
 
     @NewChain
     DeleteCommand setTransactionRequired(boolean required);
+
+    @NewChain
+    DeleteCommand setDisableCircularDeleteDetection(boolean disable);
 }

@@ -27,6 +27,8 @@ public interface DeleteOptions {
 
     boolean isTransactionRequired();
 
+    boolean disableCircularDeleteDetection();
+
     Triggers getTriggers();
 
     default DeleteOptions toMode(DeleteMode mode) {
@@ -80,6 +82,11 @@ class DeleteOptionsWrapper implements DeleteOptions {
     @Override
     public boolean isTransactionRequired() {
         return raw.isTransactionRequired();
+    }
+
+    @Override
+    public boolean disableCircularDeleteDetection() {
+        return raw.disableCircularDeleteDetection();
     }
 
     @Override
@@ -164,6 +171,11 @@ class DetachOptions implements DeleteOptions {
     @Override
     public boolean isTransactionRequired() {
         return saveOptions.isTransactionRequired();
+    }
+
+    @Override
+    public boolean disableCircularDeleteDetection() {
+        return saveOptions.isDissociationLogicalDeleteEnabled();
     }
 
     @Override

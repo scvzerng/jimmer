@@ -432,6 +432,11 @@ public abstract class AbstractJSqlClientDelegate implements JSqlClientImplemento
     }
 
     @Override
+    public boolean isCircularDeleteDetectionDisabled() {
+        return sqlClient().isCircularDeleteDetectionDisabled();
+    }
+
+    @Override
     public @Nullable ExceptionTranslator<Exception> getExceptionTranslator() {
         return sqlClient().getExceptionTranslator();
     }
