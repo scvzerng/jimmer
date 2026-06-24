@@ -69,6 +69,11 @@ public class PaginationContextImpl implements PaginationContext {
     }
 
     @Override
+    public boolean hasOrderBy() {
+        return this.originSql.contains("order by");
+    }
+
+    @Override
     public PaginationContext origin() {
         if (originApplied) {
             throw new IllegalStateException("origin() can only be called once");
