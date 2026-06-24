@@ -18,4 +18,6 @@ interface KDeleteCommandDsl {
     fun setDumbBatchAcceptable(acceptable: Boolean)
 
     fun setTransactionRequired(required: Boolean)
+
+    fun setDisableCircularDeleteDetection(disable: Boolean)
 }

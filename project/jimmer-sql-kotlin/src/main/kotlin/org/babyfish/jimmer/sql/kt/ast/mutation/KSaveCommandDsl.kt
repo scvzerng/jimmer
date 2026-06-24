@@ -10,4 +10,6 @@ interface KSaveCommandDsl : KSaveCommandPartialDsl {
     fun setMode(mode: SaveMode)
 
     fun setAssociatedModeAll(mode: AssociatedSaveMode)
+
+    fun setDisableCircularDeleteDetection(disable: Boolean)
 }

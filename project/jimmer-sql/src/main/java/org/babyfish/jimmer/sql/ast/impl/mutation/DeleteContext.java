@@ -139,9 +139,11 @@ class DeleteContext extends MutationContext {
     }
 
     void addDisconnectedId(Object id) {
+
         Set<Object> ids = idMutliMap.computeIfAbsent(path.getType(), it -> new HashSet<>());
-        if (!ids.add(id)) {
+        if (!ids.add(id) && !options.disableCircularDeleteDetection()) {
             throw new CircularDeletionException(path, id);
         }
+
     }
 }

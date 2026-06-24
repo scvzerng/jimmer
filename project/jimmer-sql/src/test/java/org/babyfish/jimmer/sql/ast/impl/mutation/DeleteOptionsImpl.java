@@ -82,6 +82,11 @@ class DeleteOptionsImpl implements DeleteOptions {
     }
 
     @Override
+    public boolean disableCircularDeleteDetection() {
+        return sqlClient.isCircularDeleteDetectionDisabled();
+    }
+
+    @Override
     public Triggers getTriggers() {
         return null;
     }
