@@ -14,7 +14,9 @@ mavenPublishing {
 
     publishToMavenCentral(automaticRelease = true)
 
-    signAllPublications()
+    if (!gradle.startParameter.taskNames.any { it.contains("publishToMavenLocal") }) {
+        signAllPublications()
+    }
 }
 
 mavenPublishing {

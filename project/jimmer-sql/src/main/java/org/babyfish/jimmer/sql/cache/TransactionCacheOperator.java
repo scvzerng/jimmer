@@ -399,6 +399,11 @@ public class TransactionCacheOperator extends AbstractCacheOperator {
         }
 
         @Override
+        public boolean hasOrderBy() {
+            return false;
+        }
+
+        @Override
         public PaginationContext origin() {
             if (isOrigin) {
                 builder.append(baseSql);
