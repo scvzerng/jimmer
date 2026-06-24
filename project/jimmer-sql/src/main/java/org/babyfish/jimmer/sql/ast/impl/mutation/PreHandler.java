@@ -196,6 +196,10 @@ abstract class AbstractPreHandler implements PreHandler {
             }
         }
         KeyMatcher.Group group = keyMatcher.match(draft);
+        if(processor != null) {
+            processor.beforeKeyMatcher(draft, group);
+            group = keyMatcher.match(draft);
+        }
         callPreProcessor(draft, group);
         if (draft.__isLoaded(idProp.getId())) {
             draftsWithId.add(draft);

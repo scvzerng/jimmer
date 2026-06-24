@@ -78,4 +78,9 @@ interface DraftPreProcessor<D: Draft> {
      * and different calls must return the same return value.
      */
     fun ignoreKeyOnly(group: KeyMatcher.Group) = false
+
+    /**
+     * Key Match modifies the key to meet the needs of deferred key settings, such as tenants
+     */
+    fun beforeKeyMatcher(draft: D, group: KeyMatcher.Group?){}
 }
