@@ -98,6 +98,8 @@ public interface JSqlClientImplementor extends JSqlClient {
 
     boolean isDissociationLogicalDeleteEnabled();
 
+    boolean isCircularDeleteDetectionDisabled();
+
     @Nullable
     ExceptionTranslator<Exception> getExceptionTranslator();
 

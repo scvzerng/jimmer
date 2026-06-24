@@ -171,6 +171,7 @@ class JSpringSqlClient extends JLazyInitializationSqlClient {
         builder.setInListPaddingEnabled(properties.isInListPaddingEnabled());
         builder.setExpandedInListPaddingEnabled(properties.isExpandedInListPaddingEnabled());
         builder.setDissociationLogicalDeleteEnabled(properties.isDissociationLogicalDeleteEnabled());
+        builder.setDisableCircularDeleteDetection(properties.isDisableCircularDeleteDetection());
         builder.setOffsetOptimizingThreshold(properties.getOffsetOptimizingThreshold());
         builder.setReverseSortOptimizationEnabled(properties.isReverseSortOptimizationEnabled());
         builder.setForeignKeyEnabledByDefault(properties.isForeignKeyEnabledByDefault());
@@ -243,7 +244,7 @@ class JSpringSqlClient extends JLazyInitializationSqlClient {
         );
 
         builder.setConnectionManager(connectionManager);
-
+        builder.setDisableCircularDeleteDetection(properties.isDisableCircularDeleteDetection());
         if (((JSqlClientImplementor.Builder) builder).getDialect().getClass() == DefaultDialect.class) {
             DialectDetector finalDetector = dialectDetector != null ?
                     dialectDetector :

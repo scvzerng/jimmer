@@ -278,6 +278,10 @@ public class SimpleEntitySaveCommandImpl<E>
     }
 
     @Override
+    public SimpleEntitySaveCommand<E> setDisableCircularDeleteDetection(boolean disable) {
+        return new SimpleEntitySaveCommandImpl<>(new DisableCircularDeleteDetectionCfg(cfg, disable));
+    }
+    @Override
     public SimpleSaveResult<E> execute(Connection con, Fetcher<E> fetcher) {
         OptionsImpl options = options();
         Saver.validateInstantiableSaveType(((ImmutableSpi) options.getArument()).__type(), options);
