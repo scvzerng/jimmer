@@ -61,6 +61,6 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.test {
-    maxHeapSize = "2g"
+    maxHeapSize = "4g"
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
 }

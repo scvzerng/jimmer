@@ -2,6 +2,7 @@ package org.babyfish.jimmer.sql.fetcher.impl;
 
 import org.babyfish.jimmer.lang.NewChain;
 import org.babyfish.jimmer.meta.*;
+import org.babyfish.jimmer.sql.InheritanceType;
 import org.babyfish.jimmer.sql.ManyToManyView;
 import org.babyfish.jimmer.sql.ManyToOne;
 import org.babyfish.jimmer.sql.OneToOne;
@@ -471,14 +472,19 @@ public class FetcherImpl<E> implements FetcherImplementor<E> {
     @NewChain
     @Override
     public FetcherImplementor<E> add(String prop) {
-        ImmutableProp immutableProp = immutableType.getProp(prop);
+        ImmutableProp immutableProp = resolveProp(prop);
+        if (immutableProp == null) {
+            throw new IllegalArgumentException(
+                    "There is no property \"" + prop + "\" in \"" + immutableType + "\""
+            );
+        }
         return addImpl(immutableProp, false, IdOnlyFetchType.DEFAULT);
     }
 
     @NewChain
     @Override
     public FetcherImplementor<E> remove(String prop) {
-        ImmutableProp immutableProp = immutableType.getProp(prop);
+        ImmutableProp immutableProp = resolveProp(prop);
         if (immutableProp.isId()) {
             throw new IllegalArgumentException(
                     "Id property \"" +
@@ -487,6 +493,31 @@ public class FetcherImpl<E> implements FetcherImplementor<E> {
             );
         }
         return addImpl(immutableProp, true, IdOnlyFetchType.DEFAULT);
+    }
+
+    /**
+     * 名字查 prop:
+     * 1. 先查 immutableType.getProps() (own + MappedSuperclass 继承的)
+     * 2. STRUCTURAL_SINGLE_TABLE polymorphism 时, fallback 到 subtype declared props
+     *    (因为 subtype 字段物理在同一表, 但 immutableType.getProps() 只包含 own)
+     *
+     * <p>返回 null 表示找不到, caller 决定抛什么错.
+     */
+    private ImmutableProp resolveProp(String name) {
+        ImmutableProp prop = immutableType.getProps().get(name);
+        if (prop != null) {
+            return prop;
+        }
+        InheritanceInfo inheritanceInfo = immutableType.getInheritanceInfo();
+        if (inheritanceInfo != null && inheritanceInfo.getStrategy() == InheritanceType.STRUCTURAL_SINGLE_TABLE) {
+            for (ImmutableType concreteType : inheritanceInfo.getConcreteTypes()) {
+                prop = concreteType.getDeclaredProps().get(name);
+                if (prop != null) {
+                    return prop;
+                }
+            }
+        }
+        return null;
     }
 
     @NewChain
@@ -504,7 +535,12 @@ public class FetcherImpl<E> implements FetcherImplementor<E> {
             Consumer<? extends FieldConfig<?, ? extends Table<?>>> loaderBlock
     ) {
         Objects.requireNonNull(prop, "'prop' cannot be null");
-        ImmutableProp immutableProp = immutableType.getProp(prop);
+        ImmutableProp immutableProp = resolveProp(prop);
+        if (immutableProp == null) {
+            throw new IllegalArgumentException(
+                    "There is no property \"" + prop + "\" in \"" + immutableType + "\""
+            );
+        }
         if (childFetcher != null &&
                 !immutableProp.isAssociation(TargetLevel.ENTITY) &&
                 !immutableProp.isEmbedded(EmbeddedLevel.SCALAR)) {
@@ -586,7 +622,12 @@ public class FetcherImpl<E> implements FetcherImplementor<E> {
             Consumer<? extends FieldConfig<?, ? extends Table<?>>> loaderBlock
     ) {
         Objects.requireNonNull(prop, "'prop' cannot be null");
-        ImmutableProp immutableProp = immutableType.getProp(prop);
+        ImmutableProp immutableProp = resolveProp(prop);
+        if (immutableProp == null) {
+            throw new IllegalArgumentException(
+                    "There is no property \"" + prop + "\" in \"" + immutableType + "\""
+            );
+        }
         validateRecursiveProp(immutableProp);
         FieldConfigImpl<Object, Table<Object>> loaderImpl = new FieldConfigImpl<>(immutableProp, null);
         if (loaderBlock != null) {
@@ -602,7 +643,12 @@ public class FetcherImpl<E> implements FetcherImplementor<E> {
     @Override
     public FetcherImplementor<E> add(String prop, IdOnlyFetchType idOnlyFetchType) {
         Objects.requireNonNull(prop, "'prop' cannot be null");
-        ImmutableProp immutableProp = immutableType.getProp(prop);
+        ImmutableProp immutableProp = resolveProp(prop);
+        if (immutableProp == null) {
+            throw new IllegalArgumentException(
+                    "There is no property \"" + prop + "\" in \"" + immutableType + "\""
+            );
+        }
         ImmutableProp associationProp = immutableProp.getIdViewBaseProp();
         if (associationProp == null) {
             associationProp = immutableProp;

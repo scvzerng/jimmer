@@ -2087,7 +2087,7 @@ public class DtoCompilerTest {
             );
         });
         Assertions.assertEquals(
-                "file:/User/test/Client.dto:5 : Duplicated property alias \"name\" between polymorphic DTO base and branch\n" +
+                "file:/User/test/Client.dto:5 : Property \"name\" cannot be declared in both base and branch \"Person\"; declare it in the base if all branches share it, or declare it separately in each branch\n" +
                         "            firstName as name\n" +
                         "                         ^",
                 ex.getMessage()

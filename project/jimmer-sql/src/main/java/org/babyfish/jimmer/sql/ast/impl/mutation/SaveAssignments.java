@@ -170,7 +170,8 @@ final class SaveAssignments {
         }
         InheritanceInfo inheritanceInfo = declaringType.getInheritanceInfo();
         return inheritanceInfo != null &&
-                inheritanceInfo.getStrategy() == InheritanceType.SINGLE_TABLE &&
+                (inheritanceInfo.getStrategy() == InheritanceType.SINGLE_TABLE ||
+                        inheritanceInfo.getStrategy() == InheritanceType.STRUCTURAL_SINGLE_TABLE) &&
                 inheritanceInfo.getRootType() == tableType;
     }
 

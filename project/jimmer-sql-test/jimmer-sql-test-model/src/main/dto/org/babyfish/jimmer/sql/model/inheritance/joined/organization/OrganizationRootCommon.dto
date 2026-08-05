@@ -1,0 +1,69 @@
+/*
+ * Organization 的 polymorphic DTO(joined 继承)——**根关联**变种。
+ *
+ * 跟 OrganizationOverview 的区别: 共享的关联属性(`director`)写在根
+ * 而不是每个 branch 内部,验证 DtoGenerator 对"根 props 关联"的生成路径。
+ *
+ * 布局:
+ *   - 根 OrganizationRootCommon 上声明 director(1-level)+ 嵌套 officeAddress(2-level)
+ *   - 顶层 class 嵌套 TargetOf_director / TargetOf_officeAddress(根关联)
+ *   - branch(Company / GovernmentAgency)**不再**嵌入 TargetOf_director
+ *   - branch class 仍实现 getDirector()(顶层 abstract),字段类型用
+ *     `OrganizationRootCommon.TargetOf_director`(顶层 inner DTO)
+ *
+ * SQL 行为:
+ *   - 主 SQL 在 tb_1_ 上投影 DIRECTOR_ID(joined inheritance 的物理列在根表)
+ *   - 1-level SQL combined 1 条:`tb_1_.ID, FULL_NAME, OFFICE_ADDRESS_ID from ORG_DIRECTOR where ID in (...)`
+ *   - 2-level SQL combined 1 条:officeAddress 一次性查
+ *   - 加上 2 个 branch 各自一条 1-level per-branch:无(branch 没声明关联)
+ *   = 1 主 + 1 根 1-level combined + 1 根 2-level combined = 3 条 SQL
+ */
+OrganizationRootCommon for Organization {
+    id
+    name
+    director {
+        id
+        fullName
+        officeAddress {
+            id
+            street
+            city
+        }
+    }
+    #types {
+        #exhaustive
+        Company {
+            shareCount
+        }
+        GovernmentAgency {
+            budget
+        }
+    }
+}
+
+/*
+ * Input 变种 — 跟 OrganizationRootCommon 同结构,验证 toEntity() 路径:
+ * 根关联属性的 inner DTO 是顶层 inner 类型,branch class 用它实现 toEntity。
+ */
+input OrganizationRootCommonInput for Organization {
+    id
+    name
+    director {
+        id
+        fullName
+        officeAddress {
+            id
+            street
+            city
+        }
+    }
+    #types {
+        #exhaustive
+        Company {
+            shareCount
+        }
+        GovernmentAgency {
+            budget
+        }
+    }
+}

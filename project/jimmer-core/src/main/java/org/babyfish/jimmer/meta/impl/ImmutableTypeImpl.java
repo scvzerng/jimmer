@@ -974,7 +974,8 @@ class ImmutableTypeImpl extends AbstractImmutableTypeImpl implements ImmutableTy
     private String getTableName0(MetadataStrategy strategy) {
         InheritanceInfo inheritanceInfo = getInheritanceInfo();
         if (inheritanceInfo != null &&
-                inheritanceInfo.getStrategy() == InheritanceType.SINGLE_TABLE &&
+                (inheritanceInfo.getStrategy() == InheritanceType.SINGLE_TABLE ||
+                        inheritanceInfo.getStrategy() == InheritanceType.STRUCTURAL_SINGLE_TABLE) &&
                 inheritanceRoot != this) {
             return inheritanceRoot.getTableName(strategy);
         }

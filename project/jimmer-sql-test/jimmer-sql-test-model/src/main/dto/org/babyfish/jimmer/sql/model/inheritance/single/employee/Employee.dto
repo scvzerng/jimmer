@@ -116,3 +116,41 @@ input EmployeeInput {
         }
     }
 }
+
+/*
+ * 回归测试: 嵌套 polymorphic DTO input + 根属性含 id-only 关联引用 (id(xxx))
+ *
+ * 用于在 jimmer-apt 跟 jimmer-ksp 两条路径上验证嵌套 polymorphic input
+ * 的 override 行为。跟 jimmer-ksp 的 Employee.dto 是同源用例,只是
+ * 在 jimmer-apt 这边独立测试,看 apt 是否也漏掉嵌套 polymorphic input
+ * 内部 prop (id(supervisor)/id(department)) 的 override 处理。
+ */
+input EmployeeWithNestedIdOnlyRefInput {
+    id
+    fullName
+    type
+
+    // 嵌套 polymorphic DTO input: supervisor 既是 polymorphic 关联,
+    // 根属性又含 id(supervisor) + id(department) 两个 id-only 引用
+    supervisor {
+        id
+        fullName
+        type
+        id(supervisor)   // 根属性: self-reference id-only 引用
+        id(department)   // 根属性: ManyToOne id-only 引用
+        #types {
+            FullTimeEmployee {}
+            PartTimeEmployee {}
+        }
+    }
+
+    #types {
+        #exhaustive
+        FullTimeEmployee {
+            annualSalary
+        }
+        PartTimeEmployee {
+            hourlyRate
+        }
+    }
+}

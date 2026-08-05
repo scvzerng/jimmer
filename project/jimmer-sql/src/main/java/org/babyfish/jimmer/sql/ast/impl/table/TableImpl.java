@@ -3,6 +3,7 @@ package org.babyfish.jimmer.sql.ast.impl.table;
 import org.babyfish.jimmer.View;
 import org.babyfish.jimmer.meta.*;
 import org.babyfish.jimmer.sql.ImmutableProps;
+import org.babyfish.jimmer.sql.InheritanceType;
 import org.babyfish.jimmer.sql.JoinType;
 import org.babyfish.jimmer.sql.ManyToOne;
 import org.babyfish.jimmer.sql.OneToOne;

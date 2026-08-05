@@ -99,7 +99,27 @@ public class DtoGenerator {
         this.polymorphicSuperInterfaceName = polymorphicSuperInterfaceName;
         this.polymorphicBranch = polymorphicBranch;
         this.polymorphicBranchKind = polymorphicBranchKind;
-        this.interfaceMethodNames = DtoInterfaces.abstractMethodNames(ctx, dtoType);
+        this.interfaceMethodNames =
+                polymorphicBranch && parent != null
+                        ? collectDeclaredMethodNamesOf(parent.dtoType)
+                        : DtoInterfaces.abstractMethodNames(ctx, dtoType);
+    }
+
+    /**
+     * 收集 polymorphic 父 DTO 自己声明的 method name (只有 getter,父接口走
+     * addAccessorDeclaration 只生成 abstract getter,不生成 setter 声明),
+     * 用于 polymorphic branch 给 getter 加 @Override 注解。
+     *
+     * 不能用 DtoInterfaces.abstractMethodNames(dtoType):polymorphic 父 DTO
+     * 的 superInterfaces 是 [Input<T>] 这种空 interface,abstractMethodNames
+     * 返回空 set。
+     */
+    private Set<String> collectDeclaredMethodNamesOf(DtoType<ImmutableType, ImmutableProp> targetDtoType) {
+        Set<String> methodNames = new LinkedHashSet<>();
+        for (AbstractProp prop : targetDtoType.getProps()) {
+            methodNames.add(getterName(prop));
+        }
+        return methodNames;
     }
 
     public void generate() {
@@ -300,6 +320,30 @@ public class DtoGenerator {
 
         ClassName superInterfaceName = getDtoClassName();
         DtoPolymorphicBranch<ImmutableType, ImmutableProp> defaultBranch = polymorphism.getDefaultBranch();
+
+        // Generate inner DTOs for root-level association props as nested
+        // classes of the polymorphic root interface. Branch classes will
+        // reference these types (e.g. "OrganizationOverview.TargetOf_director")
+        // instead of redefining their own copies.
+        for (AbstractProp rootProp : dtoType.getProps()) {
+            if (!(rootProp instanceof DtoProp<?, ?>)) {
+                continue;
+            }
+            DtoProp<ImmutableType, ImmutableProp> dtoRootProp = (DtoProp<ImmutableType, ImmutableProp>) rootProp;
+            DtoType<ImmutableType, ImmutableProp> targetType = dtoRootProp.getTargetType();
+            if (targetType == null) {
+                continue;
+            }
+            if (!dtoRootProp.isRecursive() || targetType.isFocusedRecursion()) {
+                new DtoGenerator(
+                        ctx,
+                        docMetadata,
+                        targetType,
+                        this,
+                        targetSimpleName(dtoRootProp)
+                ).generate();
+            }
+        }
 
         Map<DtoPolymorphicBranch<ImmutableType, ImmutableProp>, DtoGenerator> branchGenerators = new LinkedHashMap<>();
         if (defaultBranch != null) {
@@ -607,6 +651,13 @@ public class DtoGenerator {
         for (DtoProp<ImmutableType, ImmutableProp> prop : dtoType.getDtoProps()) {
             DtoType<ImmutableType, ImmutableProp> targetType = prop.getTargetType();
             if (targetType == null) {
+                continue;
+            }
+            // Root-level association props' inner DTOs are already generated
+            // as nested classes of the polymorphic root by generatePolymorphic().
+            // Skip them here to avoid duplicating the inner DTO definition in
+            // each branch class.
+            if (isRootLevelProp(prop)) {
                 continue;
             }
             if (!prop.isRecursive() || targetType.isFocusedRecursion()) {
@@ -2503,6 +2554,13 @@ public class DtoGenerator {
     }
 
     public TypeName getPropElementName(DtoProp<ImmutableType, ImmutableProp> prop) {
+        // Polymorphic branch processing a root-level association prop?
+        // The inner DTO for that prop is generated as a nested class of the
+        // polymorphic root (not the branch), so resolve the type name using
+        // the root generator's context to get "Outer.TargetOf_xxx".
+        if (polymorphicBranch && parent != null && isRootLevelProp(prop)) {
+            return parent.getPropElementName(prop);
+        }
         DtoProp<ImmutableType, ImmutableProp> tailProp = prop.toTailProp();
         DtoTypeRef<ImmutableType, ImmutableProp> targetTypeRef = tailProp.getTargetTypeRef();
         if (targetTypeRef != null) {
@@ -2543,6 +2601,25 @@ public class DtoGenerator {
             return typeName.box();
         }
         return typeName;
+    }
+
+    /**
+     * Returns true if {@code prop} belongs to the polymorphic root DTO's prop
+     * list (i.e. it is a "shared" prop declared on the root, not on any
+     * individual branch). For such props the inner DTO is generated as a
+     * nested class of the polymorphic root, so branch classes must reference
+     * the root-scoped class name.
+     */
+    private boolean isRootLevelProp(DtoProp<ImmutableType, ImmutableProp> prop) {
+        if (parent == null) {
+            return false;
+        }
+        for (AbstractProp p : parent.dtoType.getProps()) {
+            if (p == prop) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void collectNames(List<String> list) {

@@ -39,7 +39,7 @@ public final class MutationPath {
             if (!prop.isAssociation(TargetLevel.ENTITY) || prop.isTransient()) {
                 throw new IllegalArgumentException("The property \"" + prop + "\" is not association property");
             }
-            if (!prop.getDeclaringType().isAssignableFrom(parent.type)) {
+            if (!prop.getDeclaringType().isAssignableFrom(parent.type) && !parent.type.isAssignableFrom(prop.getDeclaringType())) {
                 throw new IllegalArgumentException(
                         "The declaring type of property \"" +
                                 prop +

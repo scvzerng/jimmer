@@ -500,6 +500,9 @@ class RealTableImpl extends AbstractDataManager<RealTable.Key, RealTable> implem
             }
             return;
         }
+        if (inheritanceInfo.getStrategy() == InheritanceType.STRUCTURAL_SINGLE_TABLE) {
+            return;
+        }
         renderJoinImpl(
                 builder,
                 joinType,

@@ -8,7 +8,7 @@
  *   - FullTimeEmployee.supervisor 投影 { id, fullName, department { id, name, location } }
  *   - PartTimeEmployee.supervisor 投影 { id, fullName }  (不投影 department)
  *
- * jimmer-ksp 会为两个 branch 生成**字段集不同**的 `TargetOf_supervisor`
+ * jimmer-apt 会为两个 branch 生成**字段集不同**的 `TargetOf_supervisor`
  * inner DTO 类,运行时各自发独立 batch fetch SQL。
  * 这是 polymorphic DTO 的 per-branch 灵活投影能力的核心验证。
  *
@@ -67,6 +67,80 @@ EmployeeOverview {
                     client
                 }
             }
+        }
+    }
+}
+
+input EmployeeInput {
+    id
+    fullName
+    type
+    #types {
+        #exhaustive
+        FullTimeEmployee {
+            annualSalary
+            supervisor {
+                id
+                fullName
+                department {
+                    id
+                    name
+                    location
+                }
+            }
+            responsibilities {
+                id
+                title
+                project {
+                    id
+                    name
+                    client
+                }
+            }
+        }
+        PartTimeEmployee {
+            hourlyRate
+            supervisor {
+                id
+                fullName
+            }
+            responsibilities {
+                id
+                title
+                project {
+                    id
+                    name
+                    client
+                }
+            }
+        }
+    }
+}
+
+
+input EmployeeWithNestedIdOnlyRefInput {
+    id
+    fullName
+    type
+    supervisor {
+        id
+        fullName
+        type
+        id(supervisor)
+        id(department)
+        #types {
+            FullTimeEmployee {}
+            PartTimeEmployee {}
+        }
+    }
+
+    #types {
+        #exhaustive
+        FullTimeEmployee {
+            annualSalary
+        }
+        PartTimeEmployee {
+            hourlyRate
         }
     }
 }
