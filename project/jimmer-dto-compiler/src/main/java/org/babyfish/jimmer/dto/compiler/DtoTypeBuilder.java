@@ -994,9 +994,12 @@ class DtoTypeBuilder<T extends BaseType, P extends BaseProp> {
                 throw ctx.exception(
                         prop.getAliasLine(),
                         prop.getAliasColumn(),
-                        "Duplicated property alias \"" +
+                        "Property \"" +
                                 prop.getAlias() +
-                                "\" between polymorphic DTO base and branch"
+                                "\" cannot be declared in both base and branch \"" +
+                                branch.getClassName() +
+                                "\"; declare it in the base if all branches share it, " +
+                                "or declare it separately in each branch"
                 );
             }
         }

@@ -55,7 +55,7 @@ class DtoGenerator private constructor(
 
     private val interfacePropNames = abstractPropNames(ctx, dtoType).let {
         if (polymorphicBranch) {
-            it + root.dtoType.props.map { prop -> prop.name }
+            it + (parent?.dtoType?.props?.map { prop -> prop.name } ?: emptyList())
         } else {
             it
         }
@@ -537,6 +537,13 @@ class DtoGenerator private constructor(
 
         for (prop in dtoType.dtoProps) {
             val targetType = prop.targetType ?: continue
+            // Root-level association props' inner DTOs are already generated
+            // as nested classes of the polymorphic root by addPolymorphicMembers().
+            // Skip them here to avoid duplicating the inner DTO definition in
+            // each branch class.
+            if (isRootLevelProp(prop)) {
+                continue
+            }
             if (!prop.isRecursive || targetType.isFocusedRecursion) {
                 DtoGenerator(
                     ctx,
@@ -596,6 +603,29 @@ class DtoGenerator private constructor(
         // 关键是 this=branch 时 collectNames 走 parent=outer 递归拼出
         // "Outer.Branch.TargetOf_xxx" 物理正确路径,而不是 outer context 漏 branch。
         val superInterfaceName = getDtoClassName()
+
+        // Generate inner DTOs for root-level association props as nested
+        // classes of the polymorphic root interface. Branch classes will
+        // reference these types (e.g. "OrganizationOverview.TargetOf_director")
+        // instead of redefining their own copies.
+        for (rootPropAbstract in dtoType.props) {
+            if (rootPropAbstract !is DtoProp<*, *>) continue
+            @Suppress("UNCHECKED_CAST")
+            val rootProp = rootPropAbstract as DtoProp<ImmutableType, ImmutableProp>
+            val targetType: DtoType<ImmutableType, ImmutableProp> = rootProp.targetType ?: continue
+            if (!rootProp.isRecursive || targetType.isFocusedRecursion) {
+                DtoGenerator(
+                    ctx,
+                    docMetadata,
+                    mutable,
+                    targetType,
+                    null,
+                    this,
+                    targetSimpleName(rootProp)
+                ).generate(emptyList())
+            }
+        }
+
         val branchGenerators = LinkedHashMap<DtoPolymorphicBranch<ImmutableType, ImmutableProp>, DtoGenerator>()
         polymorphism.defaultBranch?.let {
             branchGenerators[it] = createPolymorphicBranch(it, superInterfaceName)
@@ -2238,6 +2268,13 @@ class DtoGenerator private constructor(
     }
 
     private fun propElementName(prop: DtoProp<ImmutableType, ImmutableProp>): TypeName {
+        // Polymorphic branch processing a root-level association prop?
+        // The inner DTO for that prop is generated as a nested class of the
+        // polymorphic root (not the branch), so resolve the type name using
+        // the root generator's context to get "Outer.TargetOf_xxx".
+        if (polymorphicBranch && parent != null && isRootLevelProp(prop)) {
+            return parent.propElementName(prop)
+        }
         val tailProp = prop.toTailProp()
         tailProp.targetTypeRef?.let {
             return ClassName.bestGuess(it.qualifiedName)
@@ -2281,6 +2318,21 @@ class DtoGenerator private constructor(
             parent.collectNames(list)
             list.add(innerClassName)
         }
+    }
+
+    /**
+     * Returns true if [prop] belongs to the polymorphic root DTO's prop list
+     * (i.e. it is a "shared" prop declared on the root, not on any individual
+     * branch). For such props the inner DTO is generated as a nested class of
+     * the polymorphic root, so branch classes must reference the root-scoped
+     * class name.
+     */
+    private fun isRootLevelProp(prop: DtoProp<ImmutableType, ImmutableProp>): Boolean {
+        if (parent == null) return false
+        for (p in parent.dtoType.props) {
+            if (p === prop) return true
+        }
+        return false
     }
 
     private fun targetSimpleName(prop: DtoProp<ImmutableType, ImmutableProp>): String {
