@@ -1,0 +1,102 @@
+/*
+ * Employee 的 polymorphic DTO(single-table-inheritance)——**根关联**变种。
+ *
+ * 跟 EmployeeOverview 的区别: 共享的关联属性(`supervisor`)写在根。
+ * 同时保留一个 branch 专属关联(`responsibilities`)走 per-branch 路径,
+ * 验证"根 combined + branch per-branch"两条独立 SQL 通路互不干扰。
+ *
+ * 布局:
+ *   - 根 EmployeeRootCommon 上声明 supervisor(1-level)
+ *   - 顶层 class 嵌套 TargetOf_supervisor(根关联)
+ *   - branch(FullTimeEmployee / PartTimeEmployee)**不再**嵌入 TargetOf_supervisor
+ *   - branch class 仍实现 getSupervisor(),字段类型用
+ *     `EmployeeRootCommon.TargetOf_supervisor`
+ *   - responsibilities 仍在 FullTimeEmployee branch 内声明(per-branch 1-level + 2-level)
+ *   - PartTimeEmployee branch 自己的 responsibilities(per-branch 1-level + 2-level)
+ *
+ * SQL 行为:
+ *   - 主 SQL 投影 SUPERVISOR_ID 到 tb_1_(根主表;single-table 物理列在根表)
+ *   - 1-level supervisor SQL combined 1 条:`tb_1_.ID, FULL_NAME from STAFF_EMPLOYEE where ID in (...)`
+ *   - 2-level supervisor 嵌套没声明,所以 0 条 2-level
+ *   - responsibilities 1-level per-branch:2 条(FT + PT 各 1)
+ *   - responsibilities.project 2-level per-branch:2 条
+ *   = 1 主 + 1 根 1-level combined + 0 根 2-level + 2 branch 1-level + 2 branch 2-level = 6 条 SQL
+ */
+EmployeeRootCommon for Employee {
+    id
+    fullName
+    type
+    supervisor {
+        id
+        fullName
+    }
+    #types {
+        #exhaustive
+        FullTimeEmployee {
+            annualSalary
+            responsibilities {
+                id
+                title
+                project {
+                    id
+                    name
+                    client
+                }
+            }
+        }
+        PartTimeEmployee {
+            hourlyRate
+            responsibilities {
+                id
+                title
+                project {
+                    id
+                    name
+                    client
+                }
+            }
+        }
+    }
+}
+
+/*
+ * Input 变种 — 跟 EmployeeRootCommon 同结构,验证 toEntity() 路径:
+ * 根关联属性(supervisor) + branch 专属关联(responsibilities) 都正确
+ * 走 Input 嵌套类型 → entity draft → entity。
+ */
+input EmployeeRootCommonInput for Employee {
+    id
+    fullName
+    type
+    supervisor {
+        id
+        fullName
+    }
+    #types {
+        #exhaustive
+        FullTimeEmployee {
+            annualSalary
+            responsibilities {
+                id
+                title
+                project {
+                    id
+                    name
+                    client
+                }
+            }
+        }
+        PartTimeEmployee {
+            hourlyRate
+            responsibilities {
+                id
+                title
+                project {
+                    id
+                    name
+                    client
+                }
+            }
+        }
+    }
+}

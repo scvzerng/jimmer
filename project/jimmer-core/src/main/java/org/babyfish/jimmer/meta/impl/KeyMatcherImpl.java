@@ -153,7 +153,7 @@ public class KeyMatcherImpl implements KeyMatcher {
         List<ImmutableProp> missedProps = new ArrayList<>();
         Set<PropId> propIds = new HashSet<>();
         for (ImmutableProp prop : props) {
-            if (!prop.getDeclaringType().isAssignableFrom(type)) {
+            if (!prop.getDeclaringType().isAssignableFrom(type) && !type.isAssignableFrom(prop.getDeclaringType())) {
                 return null;
             }
             propIds.add(prop.getId());
