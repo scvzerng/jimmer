@@ -291,7 +291,8 @@ public class MutableUpdateImpl
         if (type == inheritanceInfo.getRootType()) {
             return resolvedMode == TypeMatchMode.EXACT;
         }
-        if (inheritanceInfo.getStrategy() == InheritanceType.SINGLE_TABLE) {
+        if (inheritanceInfo.getStrategy() == InheritanceType.SINGLE_TABLE ||
+                inheritanceInfo.getStrategy() == InheritanceType.STRUCTURAL_SINGLE_TABLE) {
             return true;
         }
         if (physicalUpdateType() != type) {
@@ -985,14 +986,33 @@ public class MutableUpdateImpl
             tableUsages.applyUsedStatesTo(astContext);
             tableUsages.allocateAndBindAliases(astContext);
             TableImplementor<?> table = getTableLikeImplementor();
+            ImmutableType immutableType = table.getImmutableType();
             MetadataStrategy strategy = builder.getAstContext().getSqlClient().getMetadataStrategy();
+            String alias = MutationRender.alias(builder, table);
             builder.enter(SqlBuilder.ScopeType.SELECT);
-            for (ImmutableProp prop : table.getImmutableType().getSelectableProps().values()) {
-                builder.separator().definition(
-                        MutationRender.alias(builder, table),
-                        prop.getStorage(strategy),
-                        null
-                );
+            // Mirror the INSERT column order (id, discriminator, others) so that
+            // ObjectReader reads the discriminator at the same position the
+            // writer actually emitted it.
+            ImmutableProp idProp = immutableType.getIdProp();
+            if (idProp != null) {
+                builder.definition(alias, idProp.getStorage(strategy), null);
+            }
+            InheritanceInfo inheritanceInfo = immutableType.getInheritanceInfo();
+            ImmutableProp discriminatorProp = inheritanceInfo != null
+                    ? inheritanceInfo.getDiscriminatorProp()
+                    : null;
+            if (discriminatorProp != null) {
+                builder
+                        .separator()
+                        .definition(alias, discriminatorProp.getStorage(strategy), null);
+            }
+            for (ImmutableProp prop : immutableType.getSelectableProps().values()) {
+                if (prop.isId() || prop == discriminatorProp) {
+                    continue;
+                }
+                builder
+                        .separator()
+                        .definition(alias, prop.getStorage(strategy), null);
             }
             builder.leave();
             if (ids != null) {

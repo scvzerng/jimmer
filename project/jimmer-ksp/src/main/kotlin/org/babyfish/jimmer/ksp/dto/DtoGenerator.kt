@@ -2561,26 +2561,32 @@ class DtoGenerator private constructor(
                     CodeBlock
                         .builder()
                         .apply {
-                            dtoType.props.forEachIndexed { index, prop ->
-                                val hashCodeFunName = if (propTypeName(prop).isArray()) {
-                                    "contentHashCode"
-                                } else {
-                                    "hashCode"
-                                }
-                                addStatement(
-                                    "%L %L",
-                                    if (index == 0) "var _hash =" else "_hash = 31 * _hash +",
-                                    if (prop.isNullable) {
-                                        "(${prop.alias}?.$hashCodeFunName() ?: 0)"
+                            if (dtoType.props.isEmpty()) {
+                                // 兜底: 空 props DTO (例 polymorphism fallback Default 分支),
+                                // hashCode 直接返回 0
+                                addStatement("return 0")
+                            } else {
+                                addStatement("var _hash = 0")
+                                dtoType.props.forEachIndexed { index, prop ->
+                                    val hashCodeFunName = if (propTypeName(prop).isArray()) {
+                                        "contentHashCode"
                                     } else {
-                                        "${prop.alias}.$hashCodeFunName()"
+                                        "hashCode"
                                     }
-                                )
-                                statePropName(prop, false)?.let {
-                                    addStatement("_hash = _hash * 31 + %L.hashCode()", it)
+                                    addStatement(
+                                        "_hash = 31 * _hash + %L",
+                                        if (prop.isNullable) {
+                                            "(${prop.alias}?.$hashCodeFunName() ?: 0)"
+                                        } else {
+                                            "${prop.alias}.$hashCodeFunName()"
+                                        }
+                                    )
+                                    statePropName(prop, false)?.let {
+                                        addStatement("_hash = _hash * 31 + %L.hashCode()", it)
+                                    }
                                 }
+                                addStatement("return _hash")
                             }
-                            addStatement("return _hash")
                         }
                         .build()
                 )
@@ -2599,29 +2605,35 @@ class DtoGenerator private constructor(
                     CodeBlock.builder()
                         .apply {
                             addStatement("val _other = other as? %T ?: return false", getDtoClassName())
-                            dtoType.props.forEachIndexed { index, prop ->
-                                if (index == 0) {
-                                    add("return ")
+                            if (dtoType.props.isEmpty()) {
+                                // 兜底: 空 props DTO (例 polymorphism fallback Default 分支),
+                                // 不能再走 forEachIndexed 循环, 必须直接 return true
+                                addStatement("return true")
+                            } else {
+                                dtoType.props.forEachIndexed { index, prop ->
+                                    if (index == 0) {
+                                        add("return ")
+                                    }
+                                    val statePropName = statePropName(prop, false)
+                                    if (statePropName !== null) {
+                                        add("%L == _other.%L && (\n", statePropName, statePropName)
+                                        indent()
+                                        add("!%L || ", statePropName)
+                                    }
+                                    if (propTypeName(prop).isArray()) {
+                                        add("%L.contentEquals(_other.%L)", prop.alias, prop.alias)
+                                    } else {
+                                        add("%L == _other.%L", prop.alias, prop.alias)
+                                    }
+                                    if (statePropName !== null) {
+                                        unindent()
+                                        add("\n)")
+                                    }
+                                    if (index + 1 < dtoType.props.size) {
+                                        add(" &&")
+                                    }
+                                    add("\n")
                                 }
-                                val statePropName = statePropName(prop, false)
-                                if (statePropName !== null) {
-                                    add("%L == _other.%L && (\n", statePropName, statePropName)
-                                    indent()
-                                    add("!%L || ", statePropName)
-                                }
-                                if (propTypeName(prop).isArray()) {
-                                    add("%L.contentEquals(_other.%L)", prop.alias, prop.alias)
-                                } else {
-                                    add("%L == _other.%L", prop.alias, prop.alias)
-                                }
-                                if (statePropName !== null) {
-                                    unindent()
-                                    add("\n)")
-                                }
-                                if (index + 1 < dtoType.props.size) {
-                                    add(" &&")
-                                }
-                                add("\n")
                             }
                         }
                         .build()

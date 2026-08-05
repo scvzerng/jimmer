@@ -451,12 +451,17 @@ public class EntityManager {
         InheritanceInfo info2 = type2.getInheritanceInfo();
         if (info1 != null &&
                 info2 != null &&
-                info1.getStrategy() == InheritanceType.SINGLE_TABLE &&
-                info2.getStrategy() == InheritanceType.SINGLE_TABLE &&
+                isSingleTableLike(info1.getStrategy()) &&
+                isSingleTableLike(info2.getStrategy()) &&
                 info1.getRootType() == info2.getRootType()) {
             return info1.getRootType();
         }
         return null;
+    }
+
+    private static boolean isSingleTableLike(InheritanceType type) {
+        return type == InheritanceType.SINGLE_TABLE ||
+                type == InheritanceType.STRUCTURAL_SINGLE_TABLE;
     }
 
     private static boolean validateMiddleTableCompatibility(

@@ -232,7 +232,8 @@ public class DatabaseValidators {
     private boolean isNullableInDatabase(ImmutableType type, ImmutableProp prop) {
         InheritanceInfo inheritanceInfo = type.getInheritanceInfo();
         if (inheritanceInfo != null &&
-                inheritanceInfo.getStrategy() == InheritanceType.SINGLE_TABLE &&
+                (inheritanceInfo.getStrategy() == InheritanceType.SINGLE_TABLE ||
+                        inheritanceInfo.getStrategy() == InheritanceType.STRUCTURAL_SINGLE_TABLE) &&
                 prop.toOriginal().getDeclaringType() != inheritanceInfo.getRootType()) {
             return true;
         }

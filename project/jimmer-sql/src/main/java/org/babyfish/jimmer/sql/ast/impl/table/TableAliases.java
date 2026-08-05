@@ -1,6 +1,8 @@
 package org.babyfish.jimmer.sql.ast.impl.table;
 
 import org.babyfish.jimmer.meta.ImmutableProp;
+import org.babyfish.jimmer.meta.InheritanceInfo;
+import org.babyfish.jimmer.sql.InheritanceType;
 import org.babyfish.jimmer.sql.ast.impl.base.BaseTableImplementor;
 import org.babyfish.jimmer.sql.runtime.TableUsedState;
 import org.jetbrains.annotations.Nullable;
@@ -96,6 +98,25 @@ public final class TableAliases {
                     aliases.put(table, recursiveAlias);
                 }
                 return;
+            }
+        }
+        // STRUCTURAL 1-row-1-entity 范式: treated 跟 parent 物理同表, 共享 alias 让 subtype 字段跟 parent 同 alias 渲染.
+        if (owner instanceof TableImplementor<?>) {
+            TableImplementor<?> ti = (TableImplementor<?>) owner;
+            if (ti.isTreated()) {
+                InheritanceInfo info = ti.getImmutableType().getInheritanceInfo();
+                if (info != null && info.getStrategy() == InheritanceType.STRUCTURAL_SINGLE_TABLE) {
+                    RealTable parentTable = table.getParent();
+                    if (parentTable != null) {
+                        // 父 RealTable 必须先分配 alias
+                        allocate(parentTable, false, tableStateMap, aliases);
+                        Alias parentAlias = aliases.aliasMap.get(parentTable);
+                        if (parentAlias != null) {
+                            aliases.put(table, parentAlias);
+                            return;  // 共享 parent alias, 不分配新 alias
+                        }
+                    }
+                }
             }
         }
         String middleAlias = aliases.allocateMiddleAlias(owner);

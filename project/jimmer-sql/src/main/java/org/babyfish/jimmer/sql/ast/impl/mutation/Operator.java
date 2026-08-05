@@ -2023,7 +2023,9 @@ class Operator {
             @Nullable InheritanceInfo inheritanceInfo,
             ImmutableType targetType
     ) {
-        if (inheritanceInfo == null || inheritanceInfo.getStrategy() != InheritanceType.SINGLE_TABLE) {
+        if (inheritanceInfo == null ||
+                (inheritanceInfo.getStrategy() != InheritanceType.SINGLE_TABLE &&
+                        inheritanceInfo.getStrategy() != InheritanceType.STRUCTURAL_SINGLE_TABLE)) {
             return Collections.emptyList();
         }
         ImmutableType rootType = inheritanceInfo.getRootType();

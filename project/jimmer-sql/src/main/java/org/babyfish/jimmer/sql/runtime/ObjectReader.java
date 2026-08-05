@@ -5,6 +5,7 @@ import org.babyfish.jimmer.meta.ImmutableProp;
 import org.babyfish.jimmer.meta.ImmutableType;
 import org.babyfish.jimmer.meta.InheritanceInfo;
 import org.babyfish.jimmer.meta.PropId;
+import org.babyfish.jimmer.sql.InheritanceType;
 import org.babyfish.jimmer.runtime.DraftSpi;
 import org.babyfish.jimmer.sql.exception.ExecutionException;
 import org.jetbrains.annotations.Nullable;
@@ -21,11 +22,15 @@ class ObjectReader implements Reader<Object> {
 
     private static final PropId[] EMPTY_PROP_IDS = new PropId[0];
 
+    private static final String[] EMPTY_STRINGS = new String[0];
+
     private final ImmutableType type;
 
     private final Reader<?> idReader;
 
     private final PropId[] nonIdPropIds;
+
+    private final String[] nonIdPropNames;
 
     private final Reader<?>[] nonIdReaders;
 
@@ -63,6 +68,7 @@ class ObjectReader implements Reader<Object> {
         List<PropId> idViewPropIds = new ArrayList<>();
         List<PropId> idViewBasePropIds = new ArrayList<>();
         List<PropId> nonIdPropIds = new ArrayList<>();
+        List<String> nonIdPropNames = new ArrayList<>();
         List<Reader<?>> nonIdReaderList = new ArrayList<>();
         PropId discriminatorPropId = null;
         for (Map.Entry<ImmutableProp, Reader<?>> e : nonIdReaders.entrySet()) {
@@ -77,12 +83,14 @@ class ObjectReader implements Reader<Object> {
                 idViewBasePropIds.add(idViewBaseProp.getId());
             }
             nonIdPropIds.add(prop.getId());
+            nonIdPropNames.add(prop.getName());
             nonIdReaderList.add(e.getValue());
         }
 
         this.type = type;
         this.idReader = idReader;
         this.nonIdPropIds = nonIdPropIds.toArray(EMPTY_PROP_IDS);
+        this.nonIdPropNames = nonIdPropNames.toArray(EMPTY_STRINGS);
         this.nonIdReaders = nonIdReaderList.toArray(EMPTY_READERS);
         this.idViewPropIds = idViewPropIds.toArray(EMPTY_PROP_IDS);
         this.idViewBasePropIds = idViewBasePropIds.toArray(EMPTY_PROP_IDS);
@@ -163,8 +171,12 @@ class ObjectReader implements Reader<Object> {
         spi.__set(type.getIdProp().getId(), id);
         setDiscriminator(spi, discriminatorValue);
         int size = nonIdReaders.length;
+        Map<String, ImmutableProp> actualProps = actualType.getProps();
         for (int i = 0; i < size; i++) {
-            set(spi, nonIdPropIds[i], nonIdReaders[i].read(rs, ctx));
+            Object value = nonIdReaders[i].read(rs, ctx);
+            if (actualProps.containsKey(nonIdPropNames[i])) {
+                set(spi, actualProps.get(nonIdPropNames[i]).getId(), value);
+            }
         }
         showOrHide(spi);
         for (TypeBranchReader typeBranchReader : typeBranchReaders) {

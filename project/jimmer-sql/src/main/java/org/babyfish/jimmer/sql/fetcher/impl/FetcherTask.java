@@ -121,7 +121,8 @@ class FetcherTask {
             return false;
         }
         Fetcher<?> childFetcher = field.getChildFetcher(true);
-        Object childValue = draft.__get(field.getProp().getId());
+        ImmutableProp actualProp = draft.__type().getProps().get(field.getProp().getName());
+        Object childValue = actualProp != null ? draft.__get(actualProp.getId()) : null;
         if (childFetcher != null && childValue != null) {
             if (sqlClient.getFilters().getFilter(field.getProp().getTargetType()) != null) {
                 return false;
@@ -187,7 +188,12 @@ class FetcherTask {
             }
             return true;
         }
-        return ((DraftSpi) obj).__isLoaded(field.getProp().getId());
+        DraftSpi spi = (DraftSpi) obj;
+        ImmutableProp actualProp = spi.__type().getProps().get(field.getProp().getName());
+        if (actualProp == null) {
+            return false;
+        }
+        return spi.__isLoaded(actualProp.getId());
     }
 
     @SuppressWarnings("unchecked")
@@ -238,7 +244,11 @@ class FetcherTask {
     }
 
     private void setDraftProp(DraftSpi draft, Object value, Field field) {
-        PropId propId = field.getProp().getId();
+        ImmutableProp actualProp = draft.__type().getProps().get(field.getProp().getName());
+        if (actualProp == null) {
+            return;
+        }
+        PropId propId = actualProp.getId();
         if (value == null && field.getProp().isReferenceList(TargetLevel.ENTITY)) {
             draft.__set(propId, Collections.emptyList());
         } else {
@@ -250,7 +260,10 @@ class FetcherTask {
     private static void show(DraftSpi draft, Field field) {
         if (!field.isImplicit()) {
             ImmutableProp prop = field.getProp();
-            draft.__show(prop.getId(), true);
+            ImmutableProp actualProp = draft.__type().getProps().get(prop.getName());
+            if (actualProp != null) {
+                draft.__show(actualProp.getId(), true);
+            }
             if (prop.isEmbedded(EmbeddedLevel.SCALAR)) {
                 Fetcher<?> childFetcher = field.getChildFetcher(true);
                 if (childFetcher != null) {
