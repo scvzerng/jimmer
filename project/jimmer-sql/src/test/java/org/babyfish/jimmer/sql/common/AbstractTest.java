@@ -45,8 +45,20 @@ public class AbstractTest extends Tests {
 
     protected static final ZoneOffset ZONE_ID = ZoneOffset.ofHours(8);
 
+    /**
+     * 🚩 `NON_KEYWORDS=BEFORE,AFTER`
+     *
+     * <p>{@code BEFORE} / {@code AFTER} are reserved words in H2 2.x, but
+     * {@link TriggerDiscriminatorPositionEntity} deliberately declares columns
+     * with those names, and Jimmer renders them unquoted ({@code tb_1_.BEFORE}).
+     * Quoting them in the DDL instead would make H2 create lower-cased,
+     * case-sensitive identifiers, which no longer match the generated SQL.
+     * Removing them from the reserved-word list is the only fix that keeps both
+     * sides aligned.
+     */
     protected static final String JDBC_URL =
-            "jdbc:h2:mem:jimmer_test_db;database_to_upper=true;time zone=GMT+8;DB_CLOSE_DELAY=-1";
+            "jdbc:h2:mem:jimmer_test_db;database_to_upper=true;time zone=GMT+8;" +
+                    "NON_KEYWORDS=BEFORE,AFTER;DB_CLOSE_DELAY=-1";
 
     protected static final Object UNKNOWN_VARIABLE = new Object() {
         @Override
