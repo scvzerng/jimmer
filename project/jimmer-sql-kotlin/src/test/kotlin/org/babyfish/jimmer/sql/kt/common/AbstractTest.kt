@@ -107,8 +107,35 @@ abstract class AbstractTest {
         private const val JDBC_URL = "jdbc:h2:mem:jimmer_kt_test_db;database_to_upper=true;DB_CLOSE_DELAY=-1"
 
         private val databaseInitializer: Lazy<Unit> = lazy {
-            h2Connection().use(::initDatabase)
+            h2Connection().use { con ->
+                // 🚩 The in-memory DB lives for the whole JVM (`DB_CLOSE_DELAY=-1`),
+                // while this `lazy` only guards one class loader. When Gradle runs
+                // test classes under separate class loaders, each one re-enters this
+                // block and the schema is created again, which fails on the first
+                // `create table`. The database itself is the only authority on
+                // whether it is already initialized, so ask it instead of the
+                // class-loader-scoped flag.
+                if (!isDatabaseInitialized(con)) {
+                    initDatabase(con)
+                }
+            }
         }
+
+        /**
+         * Whether the shared schema has already been created in [con].
+         *
+         * Probes `BOOK_STORE`, a table that has been part of `database.sql` since
+         * long before the shared in-memory database, so it is a stable anchor.
+         */
+        private fun isDatabaseInitialized(con: Connection): Boolean =
+            con.createStatement().use { st ->
+                st.executeQuery(
+                    "select count(*) from information_schema.tables " +
+                        "where table_schema = 'PUBLIC' and table_name = 'BOOK_STORE'"
+                ).use { rs ->
+                    rs.next() && rs.getInt(1) > 0
+                }
+            }
 
         @JvmStatic
         fun jdbc(dataSource: DataSource? = null, rollback: Boolean = dataSource == null, block: (Connection) -> Unit) {

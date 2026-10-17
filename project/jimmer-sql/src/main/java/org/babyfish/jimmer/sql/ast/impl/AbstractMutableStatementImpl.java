@@ -2,6 +2,8 @@ package org.babyfish.jimmer.sql.ast.impl;
 
 import org.babyfish.jimmer.meta.ImmutableProp;
 import org.babyfish.jimmer.meta.ImmutableType;
+import org.babyfish.jimmer.meta.InheritanceInfo;
+import org.babyfish.jimmer.sql.InheritanceType;
 import org.babyfish.jimmer.sql.JoinType;
 import org.babyfish.jimmer.sql.ast.Expression;
 import org.babyfish.jimmer.sql.ast.Predicate;
@@ -297,7 +299,9 @@ public abstract class AbstractMutableStatementImpl implements FilterableImplemen
             if (ps.isEmpty()) {
                 return true;
             }
-            if (t.getParent() == null || t.getJoinType() == JoinType.INNER) {
+            if (t.getParent() == null ||
+                    t.getJoinType() == JoinType.INNER ||
+                    isJoinlessTreatedTable(t)) {
                 predicates.addAll(ps);
                 return true;
             }
@@ -309,6 +313,26 @@ public abstract class AbstractMutableStatementImpl implements FilterableImplemen
 
     protected boolean shouldApplyImplicitDiscriminatorPredicate(TableImplementor<?> table) {
         return true;
+    }
+
+    /**
+     * Whether the specified table is a {@code treatAs} table of a
+     * STRUCTURAL_SINGLE_TABLE root.
+     *
+     * <p>
+     * STRUCTURAL is the "one row, one entity" paradigm: a treated table is
+     * physically the same table as its root and shares its alias, so no join is
+     * ever rendered for it and there is no ON clause to carry a discriminator.
+     * Filter predicates attached to such a table therefore have to reach the main
+     * WHERE clause directly.
+     */
+    private static boolean isJoinlessTreatedTable(TableImplementor<?> table) {
+        if (!table.isTreated() || table.getParent() == null) {
+            return false;
+        }
+        InheritanceInfo inheritanceInfo = table.getImmutableType().getInheritanceInfo();
+        return inheritanceInfo != null &&
+                inheritanceInfo.getStrategy() == InheritanceType.STRUCTURAL_SINGLE_TABLE;
     }
 
     public void applyVirtualPredicates(AstContext ctx) {

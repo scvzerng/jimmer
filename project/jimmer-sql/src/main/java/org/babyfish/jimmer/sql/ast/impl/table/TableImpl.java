@@ -37,6 +37,7 @@ import org.babyfish.jimmer.sql.runtime.SqlBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -577,6 +578,28 @@ class TableImpl<E> extends AbstractDataManager<TableImpl.Key, TableLikeImplement
                 joinType
         );
         putValue(key, table);
+        if (inheritanceInfo.getStrategy() == InheritanceType.STRUCTURAL_SINGLE_TABLE &&
+                // INNER is emitted only by the generated `treatAs(...)`; every internal
+                // caller (fetcher type branches in FetcherSelectionImpl / TableUsageVisitor,
+                // and `tryTreatAs` in PredicateApplier) passes LEFT. So INNER reliably
+                // means "the user explicitly narrowed this statement".
+                joinType == JoinType.INNER) {
+            // STRUCTURAL is a "one row, one entity" paradigm: the treated table is
+            // physically the same table as the root and shares its alias, so
+            // renderTreatedJoin emits no self-join and there is no ON clause to carry
+            // the discriminator. Without it `treatAs(Car)` would silently degrade to
+            // the root type and match every row.
+            //
+            // It is registered through `whereByFilter` rather than `where` so that
+            // adding it does not count as a user-authored mutation of the statement.
+            // AbstractMutableStatementImpl.onFrozen is taught to merge STRUCTURAL
+            // treated tables into the main WHERE regardless of their join type,
+            // because those tables never get an ON clause of their own.
+            statement.whereByFilter(
+                    table,
+                    Collections.singletonList(table.discriminatorPredicate(treatedAs))
+            );
+        }
         return (TableImplementor<X>) table;
     }
 
