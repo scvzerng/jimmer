@@ -1,0 +1,63 @@
+/*
+ * 复现用例的投影。
+ *
+ * 🚩 必须显式抓 qualification 关联,才会触发下钻查询。
+ *   findById 只返回 id-only 对象,压根不会发第二条 SQL,
+ *   过滤器的组织维度没有机会生效 —— 那样测不到问题。
+ */
+BundledRegistrationView for Registration {
+    id
+    name
+    qualification {
+        id
+        name
+    }
+}
+
+BundledQualificationView for Qualification {
+    id
+    name
+}
+
+/*
+ * 🚩 join fetch 专用投影。
+ *
+ * 关联表在**同一条 SQL** 里 join 出来(而不是 data loader 另发一条下钻查询),
+ * 过滤条件落在 ON 子句上 —— 这条路径的语句 purpose 仍是 QUERY,
+ * 光看 purpose 认不出来,需要靠「有父表」判断。
+ */
+BundledRegistrationJoinFetchView for Registration {
+    id
+    name
+    !fetchType(JOIN_ALWAYS)
+    qualification {
+        id
+        name
+    }
+}
+
+/*
+ * 覆盖剩下两条关联路径:
+ *  - 反向关联(qualificationLinks)走 inverseJoinImplementor
+ *  - 多对多(tags)先经过中间表 REGISTRATION_SCOPE_TAG_MAPPING
+ */
+BundledRegistrationInverseView for Registration {
+    id
+    name
+    qualificationLinks {
+        id
+        qualification {
+            id
+            name
+        }
+    }
+}
+
+BundledRegistrationMiddleTableView for Registration {
+    id
+    name
+    tags {
+        id
+        name
+    }
+}

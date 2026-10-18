@@ -17,6 +17,7 @@ import org.babyfish.jimmer.sql.kt.ast.table.impl.KNonNullTableExImpl
 import org.babyfish.jimmer.sql.kt.filter.KFilterArgs
 import org.babyfish.jimmer.sql.kt.impl.KSubQueriesImpl
 import org.babyfish.jimmer.sql.kt.impl.KWildSubQueriesImpl
+import org.babyfish.jimmer.sql.runtime.ExecutionPurpose
 
 internal class KFilterArgsImpl<E: Any>(
     val javaStatement: AbstractMutableStatementImpl,
@@ -25,6 +26,18 @@ internal class KFilterArgsImpl<E: Any>(
 
     override val table: KNonNullProps<E> =
         KNonNullTableExImpl(javaTable, JOIN_DISABLED_REASON)
+
+    // 判断「这张表是不是用户主动查的那张」—— 有父表就说明是顺着关联拿到的。
+    //
+    // 关联有两种形态,单个信号都盖不住:
+    //  - data loader 下钻 : 另发一条独立语句,那条语句的根表同样没有父表,
+    //    只有 LOAD purpose 能认出它;
+    //  - join fetch      : join 进用户自己的语句,purpose 仍是 QUERY,
+    //    但这张表有父表。
+    //
+    // 命中任意一个信号即认为不是根表。
+    override val isRootQuery: Boolean = javaTable.parent == null &&
+            javaStatement.context?.purpose?.type != ExecutionPurpose.Type.LOAD
 
     override val where: Where by lazy {
         Where(this)

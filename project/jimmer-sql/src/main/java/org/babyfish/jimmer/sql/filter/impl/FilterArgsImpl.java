@@ -14,6 +14,7 @@ import org.babyfish.jimmer.sql.ast.table.*;
 import org.babyfish.jimmer.sql.ast.table.spi.TableProxy;
 import org.babyfish.jimmer.sql.ast.table.spi.UntypedJoinDisabledTableProxy;
 import org.babyfish.jimmer.sql.filter.FilterArgs;
+import org.babyfish.jimmer.sql.runtime.ExecutionPurpose;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -46,6 +47,29 @@ public class FilterArgsImpl<P extends Props> implements FilterArgs<P> {
     @Override
     public @NotNull P getTable() {
         return props;
+    }
+
+    @Override
+    public boolean isRootQuery() {
+        // 判断「这张表是不是用户主动查的那张」—— 顺着关联拿到的表不是,
+        // 不管它是哪种机制带进来的。关联有两种形态,单个信号都盖不住:
+        //
+        //  - data loader 下钻 : 另发一条独立语句,那条语句的根表同样没有父表,
+        //    只有 LOAD purpose 能认出它;
+        //  - join fetch      : join 进用户自己的语句,purpose 仍是 QUERY,
+        //    但这张表有父表。
+        //
+        // 命中任意一个信号即认为不是根表,这样两种形态都被排除在外。
+        if (tableLikeImplementor instanceof TableImplementor<?>) {
+            TableImplementor<?> table = (TableImplementor<?>) tableLikeImplementor;
+            if (table.getParent() != null) {
+                return false;
+            }
+        }
+        AbstractMutableStatementImpl statement = tableLikeImplementor.getStatement();
+        return statement == null ||
+                statement.getContext() == null ||
+                statement.getContext().getPurpose().getType() != ExecutionPurpose.Type.LOAD;
     }
 
     @Override
