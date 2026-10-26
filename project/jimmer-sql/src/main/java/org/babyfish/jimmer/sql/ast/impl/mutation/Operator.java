@@ -2037,6 +2037,68 @@ class Operator {
         return redundantGetters;
     }
 
+    /**
+     * 过滤掉**已被赋值语句覆盖**的冗余列，并**去掉冗余列之间的重复**。
+     *
+     * <p>单表继承下改判别列时，{@code nullGetters} 是「旧类型独占、该置 null 的列」，
+     * 而 {@code assignments} 是「新实体带来的列」。两者可能命中**同一个物理列** ——
+     * 当两个 sibling 子类型**各自声明同名同列**时（真实场景：hubao_erp 报废车的
+     * 核销车 / 监销车共用行驶证、登记证书、品牌这几列）。
+     * 同一列在一条 UPDATE 里被 SET 两次，SQL Server 会直接报
+     * 「在 INSERT 的 SET 子句或列列表中多次指定了列名」。
+     *
+     * <p>🚩 **冗余列之间也可能重复** —— 这更隐蔽：
+     * {@code collectRedundantSingleTableGetters} 会遍历**所有**派生类型，
+     * 把每个「不是目标类型祖先」的类型声明的列都收集进来。
+     * 当目标类型是第三个类型时（核销车 → 废铁车），核销车和监销车**都会被收集**，
+     * 而它们声明的是**同一批物理列** —— 于是同一列在 nullGetters 里出现两次。
+     * 所以这里除了剔除被赋值覆盖的列，还要**按列名去重**。
+     *
+     * <p>取舍：**以赋值语句为准**。赋值语句里的值是本次保存真正要写入的
+     * （用户新填的数据），而「置 null」只是在旧类型独占、且新值没有覆盖到时的兜底。
+     *
+     * <p>注：判据是**物理列名**而不是 {@link ImmutableProp} ——
+     * 两个 sibling 类型声明的属性是**不同的 prop**，但落在同一列上。
+     * 用 prop 比对去不掉，只有列名能。
+     */
+    private static List<PropertyGetter> excludeAssignedGetters(
+            List<PropertyGetter> nullGetters,
+            List<SaveAssignment> assignments
+    ) {
+        if (nullGetters.isEmpty()) {
+            return nullGetters;
+        }
+        Set<String> assignedColumns = new HashSet<>();
+        if (!assignments.isEmpty()) {
+            for (SaveAssignment assignment : assignments) {
+                String columnName = assignment.target.metadata().getColumnName();
+                if (columnName != null) {
+                    assignedColumns.add(columnName);
+                }
+            }
+        }
+        boolean changed = false;
+        Set<String> visitedColumns = new HashSet<>();
+        List<PropertyGetter> result = new ArrayList<>(nullGetters.size());
+        for (PropertyGetter getter : nullGetters) {
+            String columnName = getter.metadata().getColumnName();
+            if (columnName != null) {
+                // 已被赋值语句覆盖 → 这一列由赋值语句负责，不再置 null
+                if (assignedColumns.contains(columnName)) {
+                    changed = true;
+                    continue;
+                }
+                // 冗余列之间的重复 —— 同一物理列只保留第一次
+                if (!visitedColumns.add(columnName)) {
+                    changed = true;
+                    continue;
+                }
+            }
+            result.add(getter);
+        }
+        return changed ? result : nullGetters;
+    }
+
     private void collectRedundantSingleTableGetters(
             List<PropertyGetter> getters,
             ImmutableType declaringType,
@@ -2698,7 +2760,8 @@ class Operator {
                 this.discriminatorGuardGetter = null;
             }
             this.discriminatorGuardValue = discriminatorGuardValue;
-            this.nullGetters = nullGetters;
+            // 🚩 剔除已被赋值语句覆盖的冗余列 —— 同一列只能 SET 一次
+            this.nullGetters = excludeAssignedGetters(nullGetters, assignments);
             this.userOptimisticLockPredicate = userOptimisticLockPredicate;
             this.versionGetter = versionGetter;
             this.fakeUpdate = fakeUpdate;
@@ -2968,10 +3031,11 @@ class Operator {
             this.discriminatorGuardGetter = discriminatorGuardProp != null ?
                     PropertyGetter.propertyGetters(ctx.options.getSqlClient(), discriminatorGuardProp).get(0) :
                     null;
-            this.nullGetters = nullGetters;
+            this.assignments = assignments;
+            // 🚩 剔除已被赋值语句覆盖的冗余列 —— 同一列只能 SET 一次
+            this.nullGetters = excludeAssignedGetters(nullGetters, assignments);
             this.conflictGetters = conflictGetters;
             this.conflictPredicate = conflictPredicate;
-            this.assignments = assignments;
             this.updateIgnored = updateIgnored;
             this.fakeUpdate = fakeUpdate;
             this.userOptimisticLockPredicate = userOptimisticLockPredicate;
